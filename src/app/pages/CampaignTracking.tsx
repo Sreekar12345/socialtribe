@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Inbox, MessageSquare } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
 
@@ -36,8 +36,11 @@ export function CampaignTracking() {
         </button>
         <div className="flex-1">
           <div className="text-xs uppercase tracking-widest text-white/40">Campaign</div>
-          <div className="text-white">{campaign.name || 'Untitled'} · {campaign.deliverable || 'Post'}</div>
+          <div className="text-white">{campaign.name || 'Untitled'} - {campaign.deliverable || 'Post'}</div>
         </div>
+        <button onClick={() => nav('/inbox')} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
+          <Inbox className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="px-5">
@@ -65,7 +68,7 @@ export function CampaignTracking() {
                 <span className={`mt-1 inline-block text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${statusTone[s]}`}>{s}</span>
               </div>
               <button
-                onClick={() => nav(`/chat/${inf.id}`)}
+                onClick={() => nav(`/chat/${inf.id}`, { state: { from: '/brand/track' } })}
                 className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/60"
                 aria-label="Chat"
               >

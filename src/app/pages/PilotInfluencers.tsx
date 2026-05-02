@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Search, AlertTriangle, BadgeCheck, TrendingUp, Users, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, AlertTriangle, BadgeCheck, TrendingUp, Users, Check, Pencil } from 'lucide-react';
 import { influencers } from '../data/influencers';
 import { useCampaign } from '../context/CampaignContext';
-import { inr } from '../utils/money';
+import { useAuth } from '../context/AuthContext';
+import { getNicheFilterFromIndustry, inr } from '../utils/money';
 
 const categories = ['All', 'Fitness', 'Food', 'Fashion', 'Travel', 'Beauty', 'Tech'];
 
@@ -16,10 +17,14 @@ const followerOptions = [
 
 export function PilotInfluencers() {
   const nav = useNavigate();
-  const { selected, toggle, budget, category: initialCat } = useCampaign();
-  const [cat, setCat] = useState(initialCat && initialCat !== 'All' ? initialCat : 'All');
+  const { selected, toggle, budget, setBudget } = useCampaign();
+  const { profile } = useAuth();
+  const [cat, setCat] = useState(getNicheFilterFromIndustry(profile.industry));
   const [folIdx, setFolIdx] = useState(0);
   const [query, setQuery] = useState('');
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [draftBudget, setDraftBudget] = useState(String(budget));
+  const [previousBudget, setPreviousBudget] = useState(budget);
 
   const filtered = useMemo(() => {
     return influencers.filter((i) => {
@@ -35,6 +40,34 @@ export function PilotInfluencers() {
   const over = remaining < 0;
   const usedPct = Math.min(100, Math.max(0, Math.round((used / budget) * 100)));
 
+  const startBudgetEdit = () => {
+    setPreviousBudget(budget);
+    setDraftBudget(String(budget));
+    setEditingBudget(true);
+  };
+
+  const handleBudgetChange = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    setDraftBudget(digits);
+    if (digits) {
+      setBudget(Number(digits));
+    }
+  };
+
+  const finishBudgetEdit = () => {
+    if (!draftBudget || Number(draftBudget) <= 0) {
+      setBudget(previousBudget);
+      setDraftBudget(String(previousBudget));
+    }
+    setEditingBudget(false);
+  };
+
+  const cancelBudgetEdit = () => {
+    setBudget(previousBudget);
+    setDraftBudget(String(previousBudget));
+    setEditingBudget(false);
+  };
+
   return (
     <div className="flex flex-col min-h-full">
       <div className="sticky top-0 z-20 backdrop-blur-xl bg-black/60 border-b border-white/5">
@@ -44,7 +77,12 @@ export function PilotInfluencers() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex-1">
-              <div className="text-white">Customize selection</div>
+              <div className="flex items-center gap-2">
+                <div className="text-white">Customize selection</div>
+                <button type="button" onClick={startBudgetEdit} className="cursor-pointer text-white/40 transition hover:text-white" aria-label="Edit budget">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <div className="text-xs text-white/40">{filtered.length} creators available</div>
             </div>
           </div>
@@ -60,11 +98,24 @@ export function PilotInfluencers() {
               <div className={`h-full transition-all ${over ? 'bg-red-400' : 'bg-white'}`} style={{ width: `${usedPct}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px]">
-              <span className="text-white/50">Used <span className="text-white tabular-nums">{inr(used)}</span></span>
-              <span className={over ? 'text-red-300' : 'text-white/50'}>
-                {over ? 'Over by ' : 'Left '}
-                <span className="tabular-nums">{inr(Math.abs(remaining))}</span>
-              </span>
+              {editingBudget ? (
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  value={draftBudget}
+                  onChange={(event) => handleBudgetChange(event.target.value)}
+                  onBlur={finishBudgetEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') finishBudgetEdit();
+                    if (event.key === 'Escape') cancelBudgetEdit();
+                  }}
+                  className="w-28 border-b border-white/20 bg-transparent pb-0.5 text-white tabular-nums outline-none"
+                  aria-label="Edit budget amount"
+                />
+              ) : (
+                <span className="text-white/50">{selected.length} Influencers Selected</span>
+              )}
+              <span className="text-white/50" />
             </div>
             {over && (
               <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red-300">

@@ -10,8 +10,8 @@ export function PilotConfirm() {
 
   const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
   const subtotal = picks.reduce((s, i) => s + i.price, 0);
-  const fee = Math.round(subtotal * 0.1);
-  const total = subtotal + fee;
+  const gst = Math.round(subtotal * 0.1);
+  const total = subtotal + gst;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -50,7 +50,7 @@ export function PilotConfirm() {
         <div className="rounded-2xl p-4 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10">
           <div className="text-[11px] uppercase tracking-wider text-white/40 mb-2">Full breakdown</div>
           <Row label="Subtotal" value={inr(subtotal)} />
-          <Row label="Platform fee (10%)" value={inr(fee)} muted />
+          <Row label="GST (10%)" value={inr(gst)} muted />
           <div className="h-px bg-white/10 my-3" />
           <Row label="Total" value={inr(total)} bold />
         </div>

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { checkInstagramExists, validateInstagramHandle } from '../../utils/instagram';
+
+type HandleStatus = 'idle' | 'checking' | 'valid' | 'invalid';
+type HandleValidationError = 'format' | 'not_found' | null;
 
 export function ProfileSetup() {
   const nav = useNavigate();
@@ -12,15 +16,91 @@ export function ProfileSetup() {
 
   const [brandName, setBrandName] = useState('');
   const [industry, setIndustry] = useState('');
-  const [category, setCategory] = useState('');
+  const [handle, setHandle] = useState('');
+  const [status, setStatus] = useState<HandleStatus>('idle');
+  const [handleError, setHandleError] = useState<HandleValidationError>(null);
   const [followers, setFollowers] = useState('');
-  const [price, setPrice] = useState('');
+  const [errors, setErrors] = useState<{ followers?: string }>({});
 
-  const cats = ['Fitness', 'Food', 'Fashion', 'Travel', 'Beauty', 'Tech'];
   const industries = ['DTC', 'SaaS', 'Fashion', 'Food', 'Beauty', 'Other'];
+  const isContinueDisabled = isInfluencer && status !== 'valid';
+
+  useEffect(() => {
+    if (!isInfluencer) return;
+
+    if (!handle) {
+      setStatus('idle');
+      setHandleError(null);
+      return;
+    }
+
+    if (!validateInstagramHandle(handle)) {
+      setStatus('invalid');
+      setHandleError('format');
+      return;
+    }
+
+    let cancelled = false;
+    setStatus('checking');
+    setHandleError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        const exists = await checkInstagramExists(handle);
+        if (cancelled) return;
+
+        if (exists) {
+          setStatus('valid');
+          setHandleError(null);
+          return;
+        }
+
+        setStatus('invalid');
+        setHandleError('not_found');
+      })();
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [handle, isInfluencer]);
 
   const finish = () => {
-    setProfile(isInfluencer ? { category, followers, price } : { brandName, industry });
+    if (isInfluencer) {
+      if (!validateInstagramHandle(handle)) {
+        setStatus('invalid');
+        setHandleError('format');
+        return;
+      }
+
+      if (status !== 'valid') {
+        if (handleError === null) {
+          setStatus('checking');
+        }
+        return;
+      }
+
+      const nextErrors: { followers?: string } = {};
+
+      if (!followers.trim()) {
+        nextErrors.followers = 'Followers is required.';
+      } else if (!/^\d+$/.test(followers) || Number(followers) <= 0) {
+        nextErrors.followers = 'Followers must be a number greater than 0.';
+      }
+
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors(nextErrors);
+        return;
+      }
+
+      setErrors({});
+      setProfile(({ instagramHandle: handle, followers } as unknown) as Parameters<typeof setProfile>[0]);
+      nav(dest);
+      return;
+    }
+
+    setProfile({ brandName, industry });
     nav(dest);
   };
 
@@ -40,24 +120,29 @@ export function ProfileSetup() {
       <div className="mt-8 space-y-5">
         {isInfluencer ? (
           <>
-            <div>
-              <label className="text-xs uppercase tracking-widest text-white/40">Category</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {cats.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setCategory(c)}
-                    className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
-                      category === c ? 'bg-white text-black border-white' : 'bg-white/[0.03] text-white/70 border-white/10'
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Text label="Followers" value={followers} onChange={setFollowers} placeholder="48000" type="number" />
-            <Text label="Price per post ($)" value={price} onChange={setPrice} placeholder="280" type="number" />
+            <Text
+              label="Instagram Handle"
+              value={handle}
+              onChange={(value) => {
+                setHandle(value);
+              }}
+              placeholder="@username"
+            />
+            {status === 'checking' ? <p className="-mt-3 text-xs text-white/50">Checking...</p> : null}
+            {status === 'valid' ? <p className="-mt-3 text-xs text-emerald-300">Valid Instagram handle</p> : null}
+            {status === 'invalid' && handleError === 'format' ? <p className="-mt-3 text-xs text-red-300">Invalid handle format</p> : null}
+            {status === 'invalid' && handleError === 'not_found' ? <p className="-mt-3 text-xs text-red-300">Handle does not exist</p> : null}
+            <Text
+              label="Followers"
+              value={followers}
+              onChange={(value) => {
+                setFollowers(value);
+                setErrors((current) => ({ ...current, followers: undefined }));
+              }}
+              placeholder="48000"
+              type="number"
+            />
+            {errors.followers ? <p className="-mt-3 text-xs text-red-300">{errors.followers}</p> : null}
           </>
         ) : (
           <>
@@ -85,13 +170,11 @@ export function ProfileSetup() {
       <div className="flex-1" />
 
       <button
+        disabled={isContinueDisabled}
         onClick={finish}
-        className="mt-8 w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 transition-all"
+        className="mt-8 w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
       >
         Continue <ArrowRight className="w-4 h-4" />
-      </button>
-      <button onClick={() => nav(dest)} className="mt-3 w-full py-2 text-white/50 text-sm">
-        Skip for now
       </button>
     </div>
   );

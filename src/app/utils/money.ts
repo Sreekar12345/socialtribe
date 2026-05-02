@@ -8,8 +8,21 @@ export const inrShort = (n: number) => {
   return `₹${n}`;
 };
 
-export const aiRecommend = (pool: Influencer[], budget: number, category: string) => {
-  const matches = pool.filter((i) => i.available && (category === 'All' || i.niche === category));
+export const getNicheFilterFromIndustry = (industry?: string) => {
+  switch (industry) {
+    case 'Fashion':
+    case 'Food':
+    case 'Beauty':
+      return industry;
+    case 'SaaS':
+      return 'Tech';
+    default:
+      return 'All';
+  }
+};
+
+export const aiRecommend = (pool: Influencer[], budget: number, nicheFilter: string) => {
+  const matches = pool.filter((i) => i.available && (nicheFilter === 'All' || i.niche === nicheFilter));
   const scored = matches
     .map((i) => ({ i, score: i.engagement * 10 + i.followers / 10000 - i.price / 2000 }))
     .sort((a, b) => b.score - a.score);

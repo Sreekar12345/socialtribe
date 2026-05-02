@@ -5,20 +5,18 @@ import { useCampaign } from '../context/CampaignContext';
 import { inr } from '../utils/money';
 
 const presets = [
-  { label: '₹5k – ₹10k', value: 10000 },
-  { label: '₹10k – ₹25k', value: 25000 },
-  { label: '₹25k – ₹50k', value: 50000 },
+  { label: '₹5k - ₹10k', value: 10000 },
+  { label: '₹10k - ₹25k', value: 25000 },
+  { label: '₹25k - ₹50k', value: 50000 },
 ];
-
-const cats = ['Fashion', 'Fitness', 'Food', 'Travel', 'Beauty', 'Tech'];
 
 export function BudgetSetup() {
   const nav = useNavigate();
-  const { budget, setBudget, category, setCategory } = useCampaign();
+  const { budget, setBudget } = useCampaign();
   const [custom, setCustom] = useState('');
   const [picked, setPicked] = useState<number | 'custom' | null>(null);
 
-  const canProceed = (picked === 'custom' ? Number(custom) > 0 : picked !== null) && category !== 'All';
+  const canProceed = picked === 'custom' ? Number(custom) > 0 : picked !== null;
 
   const go = () => {
     if (picked === 'custom') setBudget(Number(custom));
@@ -43,47 +41,31 @@ export function BudgetSetup() {
           <button
             key={p.value}
             onClick={() => setPicked(p.value)}
-            className={`w-full text-left px-4 py-4 rounded-2xl border transition-all flex items-center justify-between ${
-              picked === p.value ? 'bg-white text-black border-white' : 'bg-white/[0.03] border-white/10 text-white'
-            }`}
+            className={`w-full text-left px-4 py-4 rounded-2xl border transition-all flex items-center justify-between ${picked === p.value ? 'bg-white text-black border-white' : 'bg-white/[0.03] border-white/10 text-white'
+              }`}
           >
             <span>{p.label}</span>
             <span className={`text-xs ${picked === p.value ? 'text-black/50' : 'text-white/40'}`}>up to {inr(p.value)}</span>
           </button>
         ))}
         <div
-          className={`px-4 py-3 rounded-2xl border transition-all ${
-            picked === 'custom' ? 'bg-white/[0.06] border-white/30' : 'bg-white/[0.03] border-white/10'
-          }`}
+          className={`px-4 py-3 rounded-2xl border transition-all ${picked === 'custom' ? 'bg-white/[0.06] border-white/30' : 'bg-white/[0.03] border-white/10'
+            }`}
         >
           <div className="flex items-center gap-2">
             <span className="text-white/50 text-sm">₹</span>
             <input
               inputMode="numeric"
               value={custom}
-              onChange={(e) => { setCustom(e.target.value.replace(/\D/g, '')); setPicked('custom'); }}
+              onChange={(e) => {
+                setCustom(e.target.value.replace(/\D/g, ''));
+                setPicked('custom');
+              }}
               onFocus={() => setPicked('custom')}
               placeholder="Custom amount"
               className="flex-1 bg-transparent outline-none text-white placeholder:text-white/30 text-sm"
             />
           </div>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <div className="text-xs uppercase tracking-widest text-white/40 mb-3">Category</div>
-        <div className="flex flex-wrap gap-2">
-          {cats.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
-                category === c ? 'bg-white text-black border-white' : 'bg-white/[0.03] text-white/70 border-white/10'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
         </div>
       </div>
 

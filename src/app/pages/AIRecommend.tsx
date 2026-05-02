@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Loader2, Sparkles, TrendingUp, Users, Zap } from 'lucide-react';
+import { ArrowLeft, Loader2, Pencil, Sparkles, TrendingUp, Users, Zap } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
+import { useAuth } from '../context/AuthContext';
 import { influencers } from '../data/influencers';
-import { aiRecommend, inr } from '../utils/money';
+import { aiRecommend, getNicheFilterFromIndustry, inr } from '../utils/money';
 
 export function AIRecommend() {
   const nav = useNavigate();
-  const { budget, category, setSelected } = useCampaign();
+  const { budget, setBudget, setSelected } = useCampaign();
+  const { profile } = useAuth();
   const [thinking, setThinking] = useState(true);
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [draftBudget, setDraftBudget] = useState(String(budget));
+  const [previousBudget, setPreviousBudget] = useState(budget);
+  const nicheFilter = getNicheFilterFromIndustry(profile.industry);
+  const filterLabel = nicheFilter === 'All' ? 'best-fit' : nicheFilter.toLowerCase();
 
-  const { picked, spent } = useMemo(() => aiRecommend(influencers, budget, category), [budget, category]);
+  const { picked, spent } = useMemo(() => aiRecommend(influencers, budget, nicheFilter), [budget, nicheFilter]);
   const remaining = Math.max(0, budget - spent);
   const usedPct = Math.min(100, Math.round((spent / budget) * 100));
 
@@ -18,6 +25,12 @@ export function AIRecommend() {
     const t = setTimeout(() => setThinking(false), 1100);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!editingBudget) {
+      setDraftBudget(String(budget));
+    }
+  }, [budget, editingBudget]);
 
   const proceed = () => {
     setSelected(picked.map((i) => i.id));
@@ -27,6 +40,34 @@ export function AIRecommend() {
   const customize = () => {
     setSelected(picked.map((i) => i.id));
     nav('/influencers');
+  };
+
+  const startBudgetEdit = () => {
+    setPreviousBudget(budget);
+    setDraftBudget(String(budget));
+    setEditingBudget(true);
+  };
+
+  const handleBudgetChange = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    setDraftBudget(digits);
+    if (digits) {
+      setBudget(Number(digits));
+    }
+  };
+
+  const finishBudgetEdit = () => {
+    if (!draftBudget || Number(draftBudget) <= 0) {
+      setBudget(previousBudget);
+      setDraftBudget(String(previousBudget));
+    }
+    setEditingBudget(false);
+  };
+
+  const cancelBudgetEdit = () => {
+    setBudget(previousBudget);
+    setDraftBudget(String(previousBudget));
+    setEditingBudget(false);
   };
 
   if (thinking) {
@@ -42,7 +83,7 @@ export function AIRecommend() {
           <Loader2 className="w-4 h-4 animate-spin" /> Building your plan…
         </div>
         <div className="mt-8 space-y-1.5 text-[11px] text-white/40 text-center">
-          <div>Matching {category.toLowerCase()} creators</div>
+          <div>Matching {filterLabel} creators</div>
           <div>Optimizing reach × engagement</div>
           <div>Fitting {inr(budget)} budget</div>
         </div>
@@ -67,21 +108,38 @@ export function AIRecommend() {
       <div className="px-5 space-y-4 flex-1">
         <div className="rounded-2xl p-4 bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-white/50 uppercase tracking-widest">Budget utilization</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white/50 uppercase tracking-widest">Budget utilization</span>
+              <button type="button" onClick={startBudgetEdit} className="cursor-pointer text-white/40 transition hover:text-white" aria-label="Edit budget">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <span className="text-white tabular-nums">{usedPct}%</span>
           </div>
           <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
             <div className="h-full bg-white" style={{ width: `${usedPct}%` }} />
           </div>
           <div className="mt-3 flex items-center justify-between text-xs">
-            <div>
-              <div className="text-white/40">Used</div>
-              <div className="text-white tabular-nums mt-0.5">{inr(spent)}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-white/40">Remaining</div>
-              <div className="text-white tabular-nums mt-0.5">{inr(remaining)}</div>
-            </div>
+            {editingBudget ? (
+              <input
+                autoFocus
+                inputMode="numeric"
+                value={draftBudget}
+                onChange={(event) => handleBudgetChange(event.target.value)}
+                onBlur={finishBudgetEdit}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') finishBudgetEdit();
+                  if (event.key === 'Escape') cancelBudgetEdit();
+                }}
+                className="w-28 border-b border-white/20 bg-transparent pb-0.5 text-white tabular-nums outline-none"
+                aria-label="Edit budget amount"
+              />
+            ) : (
+              <div>
+                <div className="text-white tabular-nums">{picked.length} Influencers Selected</div>
+              </div>
+            )}
+            <div className="text-right" />
           </div>
         </div>
 

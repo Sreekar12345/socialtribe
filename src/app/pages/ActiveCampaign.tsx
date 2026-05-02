@@ -15,7 +15,7 @@ export function ActiveCampaign() {
           <div className="text-xs uppercase tracking-widest text-white/40">Active campaign</div>
           <div className="text-white">Acme Co. · Summer drop</div>
         </div>
-        <button onClick={() => nav(`/chat/${id}`)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
+        <button onClick={() => nav(`/chat/${id}`, { state: { from: `/influencer/campaign/${id}` } })} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
           <MessageSquare className="w-4 h-4" />
         </button>
       </div>

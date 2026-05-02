@@ -17,6 +17,7 @@ import { CampaignTracking } from "./pages/CampaignTracking";
 import { ContentReview } from "./pages/ContentReview";
 import { ActiveCampaign } from "./pages/ActiveCampaign";
 import { ContentSubmission } from "./pages/ContentSubmission";
+import { ChatInbox } from "./pages/ChatInbox";
 import { LightChat } from "./pages/LightChat";
 
 export const router = createBrowserRouter([
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
   { path: "/influencer/campaign/:id", element: <ActiveCampaign /> },
   { path: "/influencer/submit/:id", element: <ContentSubmission /> },
 
+  { path: "/inbox", element: <ChatInbox /> },
   { path: "/chat/:id", element: <LightChat /> },
 
   { path: "*", element: <PilotLanding /> },

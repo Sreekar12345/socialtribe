@@ -41,9 +41,14 @@ export function InfluencerHome() {
           <div className="text-xs uppercase tracking-widest text-white/40">Creator</div>
           <h1 className="mt-1 text-white text-2xl tracking-tight">Welcome back</h1>
         </div>
-        <button onClick={() => nav('/')} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50">
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => nav('/inbox')} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50">
+            <Inbox className="w-4 h-4" />
+          </button>
+          <button onClick={() => nav('/')} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50">
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Earnings */}
