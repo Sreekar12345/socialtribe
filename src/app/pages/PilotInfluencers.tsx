@@ -68,6 +68,15 @@ export function PilotInfluencers() {
     setEditingBudget(false);
   };
 
+  const upgradeBudget = () => {
+    const nextBudget = budget <= 10000 ? 20000 : budget + 10000;
+    setBudget(nextBudget);
+    setDraftBudget(String(nextBudget));
+    if (editingBudget) {
+      setPreviousBudget(nextBudget);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-full">
       <div className="sticky top-0 z-20 backdrop-blur-xl bg-black/60 border-b border-white/5">
@@ -118,8 +127,17 @@ export function PilotInfluencers() {
               <span className="text-white/50" />
             </div>
             {over && (
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red-300">
-                <AlertTriangle className="w-3 h-3" /> You've exceeded your budget
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-red-300">
+                  <AlertTriangle className="w-3 h-3" /> You've exceeded your budget
+                </div>
+                <button
+                  type="button"
+                  onClick={upgradeBudget}
+                  className="rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1 text-[11px] text-red-200 transition hover:bg-red-400/15"
+                >
+                  Upgrade Budget
+                </button>
               </div>
             )}
           </div>
