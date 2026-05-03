@@ -3,18 +3,33 @@ import { ArrowLeft, ArrowRight, X, AlertTriangle } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
 import { inr } from '../utils/money';
-
-const deliverables: Array<'Story' | 'Post' | 'Reel'> = ['Story', 'Post', 'Reel'];
+import { calculatePrice, DELIVERABLE_OPTIONS, DeliverableKey } from '../utils/pricing';
 
 export function PilotCampaign() {
   const nav = useNavigate();
   const { selected, toggle, campaign, setCampaign, budget } = useCampaign();
+  const deliverables = campaign.deliverables;
 
   const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
-  const subtotal = picks.reduce((s, i) => s + i.price, 0);
+  const subtotal = deliverables.length
+    ? picks.reduce((sum, influencer) => sum + calculatePrice(influencer.price, deliverables), 0)
+    : 0;
   const over = subtotal > budget;
 
-  const canProceed = picks.length > 0 && campaign.name.trim() && campaign.deadline && !over;
+  const toggleDeliverable = (type: DeliverableKey) => {
+    if (deliverables.includes(type)) {
+      setCampaign({ ...campaign, deliverables: deliverables.filter((d) => d !== type) });
+    } else {
+      setCampaign({ ...campaign, deliverables: [...deliverables, type] });
+    }
+  };
+
+  const canProceed =
+    picks.length > 0 &&
+    campaign.name.trim().length > 0 &&
+    campaign.deadline.trim().length > 0 &&
+    deliverables.length > 0 &&
+    !over;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -71,17 +86,18 @@ export function PilotCampaign() {
           <div>
             <label className="text-xs uppercase tracking-widest text-white/40">Deliverable</label>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              {deliverables.map((d) => (
+              {DELIVERABLE_OPTIONS.map((d) => (
                 <button
-                  key={d}
-                  onClick={() => setCampaign({ ...campaign, deliverable: d })}
+                  key={d.value}
+                  type="button"
+                  onClick={() => toggleDeliverable(d.value)}
                   className={`py-3 rounded-xl text-sm border transition-all ${
-                    campaign.deliverable === d
+                    deliverables.includes(d.value)
                       ? 'bg-white text-black border-white'
                       : 'bg-white/[0.03] text-white/70 border-white/10'
                   }`}
                 >
-                  {d}
+                  {d.label}
                 </button>
               ))}
             </div>

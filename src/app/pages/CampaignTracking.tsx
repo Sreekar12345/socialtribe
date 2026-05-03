@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Inbox, MessageSquare } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
+import { inr } from '../utils/money';
+import { calculatePrice, formatDeliverablesSummary } from '../utils/pricing';
 
 type Status = 'Pending' | 'Accepted' | 'In Progress' | 'Submitted' | 'Approved';
 
@@ -21,6 +23,7 @@ export function CampaignTracking() {
   const nav = useNavigate();
   const { selected, campaign } = useCampaign();
   const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
+  const deliverablesSummary = formatDeliverablesSummary(campaign.deliverables) || '1 Post';
 
   const list = picks.length ? picks : influencers.slice(0, 4);
 
@@ -36,7 +39,7 @@ export function CampaignTracking() {
         </button>
         <div className="flex-1">
           <div className="text-xs uppercase tracking-widest text-white/40">Campaign</div>
-          <div className="text-white">{campaign.name || 'Untitled'} - {campaign.deliverable || 'Post'}</div>
+          <div className="text-white">{campaign.name || 'Untitled'} - {deliverablesSummary}</div>
         </div>
         <button onClick={() => nav('/inbox')} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
           <Inbox className="w-4 h-4" />
@@ -82,7 +85,9 @@ export function CampaignTracking() {
                   Review
                 </button>
               ) : (
-                <span className="text-white/40 tabular-nums text-sm">${inf.price}</span>
+                <span className="text-white/40 tabular-nums text-sm">
+                  {inr(campaign.deliverables.length ? calculatePrice(inf.price, campaign.deliverables) : inf.price)}
+                </span>
               )}
             </div>
           );

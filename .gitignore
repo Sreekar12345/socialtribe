@@ -1,4 +1,14 @@
 node_modules/
+backend/node_modules/
 dist/
 .env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
 .vite
+*.pem
+*.key
+*.p12
+*.crt

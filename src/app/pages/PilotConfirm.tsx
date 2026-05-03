@@ -3,13 +3,20 @@ import { ArrowLeft, Lock, Shield, Clock } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
 import { inr } from '../utils/money';
+import { calculatePrice, formatDeliverablesSummary } from '../utils/pricing';
 
 export function PilotConfirm() {
   const nav = useNavigate();
   const { selected, campaign } = useCampaign();
 
   const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
-  const subtotal = picks.reduce((s, i) => s + i.price, 0);
+  const deliverablesSummary = formatDeliverablesSummary(campaign.deliverables) || '1 Post';
+  const subtotal = picks.reduce((sum, influencer) => {
+    const amount = campaign.deliverables.length
+      ? calculatePrice(influencer.price, campaign.deliverables)
+      : influencer.price;
+    return sum + amount;
+  }, 0);
   const gst = Math.round(subtotal * 0.1);
   const total = subtotal + gst;
 
@@ -28,16 +35,18 @@ export function PilotConfirm() {
       <div className="px-5 space-y-5 flex-1">
         <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
           <div className="px-4 py-3 border-b border-white/5 text-xs uppercase tracking-widest text-white/40">
-            {campaign.name || 'Untitled campaign'} · {campaign.deliverable}
+            {campaign.name || 'Untitled campaign'} · {deliverablesSummary}
           </div>
           {picks.map((i) => (
             <div key={i.id} className="flex items-center gap-3 px-4 py-3 border-b border-white/5 last:border-0">
               <img src={i.image} className="w-9 h-9 rounded-full object-cover" />
               <div className="flex-1 min-w-0">
                 <div className="text-white text-sm">{i.name}</div>
-                <div className="text-[11px] text-white/40">1× {campaign.deliverable.toLowerCase()}</div>
+                <div className="text-[11px] text-white/40">{deliverablesSummary}</div>
               </div>
-              <div className="text-white tabular-nums text-sm">{inr(i.price)}</div>
+              <div className="text-white tabular-nums text-sm">
+                {inr(campaign.deliverables.length ? calculatePrice(i.price, campaign.deliverables) : i.price)}
+              </div>
             </div>
           ))}
         </div>

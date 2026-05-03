@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { influencers } from '../data/influencers';
+import { calculatePrice, DeliverableKey, formatDeliverablesSummary } from '../utils/pricing';
 import { useAuth } from './AuthContext';
+import { useCampaign } from './CampaignContext';
 
 type RoleMode = 'brand' | 'influencer';
 type DealStatus = 'pending' | 'negotiating' | 'active' | 'completed';
@@ -49,11 +51,11 @@ interface ChatState {
 const Ctx = createContext<ChatState | null>(null);
 
 const dealOrder: DealStatus[] = ['negotiating', 'pending', 'active', 'completed'];
-const creatorDeliverables = [
-  '1 Reel + 3 Story frames',
-  '1 Feed post + 2 Story frames',
-  '2 Story frames + link mention',
-  '1 Reel with product tag',
+const creatorDeliverables: DeliverableKey[][] = [
+  ['reel', 'story', 'story', 'story'],
+  ['post', 'story', 'story'],
+  ['story', 'story'],
+  ['reel'],
 ];
 
 const brandThreads = [
@@ -64,7 +66,15 @@ const brandThreads = [
     dealStatus: 'pending' as const,
     messages: [
       { id: 'b1-m1', type: 'text' as const, from: 'them' as const, text: 'We loved your last reel and want to book a campaign for next week.', time: '09:10' },
-      { id: 'b1-o1', type: 'offer' as const, from: 'them' as const, amount: 3200, deliverables: '1 Reel + 2 Story frames', status: 'pending' as const, time: '09:14' },
+      {
+        id: 'b1-o1',
+        type: 'offer' as const,
+        from: 'them' as const,
+        amount: calculatePrice(influencers[0]?.price ?? 0, ['reel', 'story', 'story']),
+        deliverables: formatDeliverablesSummary(['reel', 'story', 'story']),
+        status: 'pending' as const,
+        time: '09:14',
+      },
     ],
   },
   {
@@ -74,7 +84,15 @@ const brandThreads = [
     dealStatus: 'active' as const,
     messages: [
       { id: 'b2-m1', type: 'text' as const, from: 'them' as const, text: 'Can you lock in a launch day post for the new kit?', time: 'Yesterday' },
-      { id: 'b2-o1', type: 'offer' as const, from: 'them' as const, amount: 5400, deliverables: '1 Feed post + 1 Story set', status: 'accepted' as const, time: 'Yesterday' },
+      {
+        id: 'b2-o1',
+        type: 'offer' as const,
+        from: 'them' as const,
+        amount: calculatePrice(influencers[1]?.price ?? 0, ['post', 'story', 'story']),
+        deliverables: formatDeliverablesSummary(['post', 'story', 'story']),
+        status: 'accepted' as const,
+        time: 'Yesterday',
+      },
       { id: 'b2-s1', type: 'text' as const, from: 'system' as const, text: 'Deal active. Content production is underway.', time: 'Yesterday' },
     ],
   },
@@ -84,7 +102,15 @@ const brandThreads = [
     subtitle: 'Travel Story Series',
     dealStatus: 'completed' as const,
     messages: [
-      { id: 'b3-o1', type: 'offer' as const, from: 'them' as const, amount: 2100, deliverables: '2 Story frames + hotel tag', status: 'completed' as const, time: 'Apr 24' },
+      {
+        id: 'b3-o1',
+        type: 'offer' as const,
+        from: 'them' as const,
+        amount: calculatePrice(influencers[2]?.price ?? 0, ['story', 'story']),
+        deliverables: formatDeliverablesSummary(['story', 'story']),
+        status: 'completed' as const,
+        time: 'Apr 24',
+      },
       { id: 'b3-s1', type: 'text' as const, from: 'system' as const, text: 'Deal completed. Waiting for payout release.', time: 'Apr 27' },
     ],
   },
@@ -97,6 +123,11 @@ const formatTime = () =>
   });
 
 const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+const getSeedDeliverables = (chatId: string) => {
+  const index = influencers.findIndex((influencer) => influencer.id === chatId);
+  return creatorDeliverables[index >= 0 ? index % creatorDeliverables.length : 0];
+};
 
 const buildBrandSeed = (): ChatThread[] =>
   influencers.map((influencer, index) => {
@@ -124,8 +155,8 @@ const buildBrandSeed = (): ChatThread[] =>
         id: `c${influencer.id}-o1`,
         type: 'offer',
         from: 'me',
-        amount: influencer.price,
-        deliverables,
+        amount: calculatePrice(influencer.price, deliverables),
+        deliverables: formatDeliverablesSummary(deliverables),
         status: offerStatus,
         time: '10:27',
       },
@@ -136,7 +167,7 @@ const buildBrandSeed = (): ChatThread[] =>
         id: `c${influencer.id}-m3`,
         type: 'text',
         from: 'them',
-        text: 'Can we add one extra story frame if we keep the same budget?',
+        text: 'Can we add one extra story frame to this package?',
         time: '10:31',
       });
     }
@@ -181,6 +212,7 @@ const createSeed = (role: RoleMode): ChatThread[] => (role === 'influencer' ? bu
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { role } = useAuth();
+  const { selected, campaign } = useCampaign();
   const mode: RoleMode = role === 'influencer' ? 'influencer' : 'brand';
   const [chats, setChats] = useState<ChatThread[]>(() => createSeed(mode));
 
@@ -188,9 +220,36 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setChats(createSeed(mode));
   }, [mode]);
 
+  const selectedSet = new Set(selected);
+  const visibleChats =
+    mode === 'brand'
+      ? chats.map((chat) => {
+          const influencer = influencers.find((item) => item.id === chat.id);
+          if (!influencer) return chat;
+
+          const activeDeliverables =
+            campaign.deliverables.length > 0 && selectedSet.has(chat.id)
+              ? campaign.deliverables
+              : getSeedDeliverables(chat.id);
+
+          return {
+            ...chat,
+            messages: chat.messages.map((message) =>
+              message.type === 'offer'
+                ? {
+                    ...message,
+                    amount: calculatePrice(influencer.price, activeDeliverables),
+                    deliverables: formatDeliverablesSummary(activeDeliverables),
+                  }
+                : message,
+            ),
+          };
+        })
+      : chats;
+
   const getChat = (id?: string) => {
-    if (!id) return chats[0];
-    return chats.find((chat) => chat.id === id) ?? chats[0];
+    if (!id) return visibleChats[0];
+    return visibleChats.find((chat) => chat.id === id) ?? visibleChats[0];
   };
 
   const sendTextMessage = (chatId: string, text: string) => {
@@ -304,7 +363,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ chats, getChat, sendTextMessage, sendCounterMessage, acceptOffer, markDealCompleted }}>
+    <Ctx.Provider value={{ chats: visibleChats, getChat, sendTextMessage, sendCounterMessage, acceptOffer, markDealCompleted }}>
       {children}
     </Ctx.Provider>
   );

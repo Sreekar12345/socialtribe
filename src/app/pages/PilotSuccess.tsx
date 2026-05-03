@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router';
 import { Check, ArrowRight } from 'lucide-react';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
+import { formatDeliverablesSummary } from '../utils/pricing';
 
 export function PilotSuccess() {
   const nav = useNavigate();
   const { selected, campaign, clear } = useCampaign();
   const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
+  const deliverablesSummary = formatDeliverablesSummary(campaign.deliverables) || '1 Post';
 
   const delivery = campaign.deadline
     ? new Date(campaign.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -36,7 +38,7 @@ export function PilotSuccess() {
 
       <div className="mt-10 rounded-2xl p-4 bg-white/[0.03] border border-white/10">
         <div className="text-xs uppercase tracking-widest text-white/40 mb-3">
-          {campaign.name || 'Campaign'} · {campaign.deliverable}
+          {campaign.name || 'Campaign'} · {deliverablesSummary}
         </div>
         <div className="flex -space-x-3 mb-3">
           {picks.slice(0, 6).map((i) => (
@@ -76,7 +78,10 @@ export function PilotSuccess() {
         Track progress <ArrowRight className="w-4 h-4" />
       </button>
       <button
-        onClick={() => { clear(); nav('/'); }}
+        onClick={() => {
+          clear();
+          nav('/');
+        }}
         className="mt-3 w-full py-3 text-white/50 text-sm"
       >
         Back to home

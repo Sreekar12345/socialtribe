@@ -3,19 +3,25 @@ import { ArrowLeft, Send } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useNavigate, useParams } from 'react-router';
+import { influencers } from '../data/influencers';
+import { inr } from '../utils/money';
+import { calculatePrice, formatDeliverablesSummary, type DeliverableKey } from '../utils/pricing';
 
 export function DealChat() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [message, setMessage] = useState('');
+  const deliverables: DeliverableKey[] = ['reel'];
+  const finalOffer = calculatePrice(influencers[0]?.price ?? 0, deliverables);
+  const deliverableSummary = formatDeliverablesSummary(deliverables);
 
   const deal = {
     brand: 'EcoThreads',
     influencer: '@sarahstyle',
-    deliverable: 'Instagram Reel',
-    proposedBudget: '$500',
+    deliverable: deliverableSummary,
+    finalOffer: inr(finalOffer),
     deadline: 'Apr 30, 2026',
-    status: 'negotiating'
+    status: 'negotiating',
   };
 
   const messages = [
@@ -23,26 +29,26 @@ export function DealChat() {
       id: '1',
       sender: 'brand',
       text: "Hi! We'd love to collaborate with you for our summer collection launch.",
-      time: '2:30 PM'
+      time: '2:30 PM',
     },
     {
       id: '2',
       sender: 'influencer',
       text: "Thanks for reaching out! I'd be happy to discuss this. What deliverables did you have in mind?",
-      time: '2:45 PM'
+      time: '2:45 PM',
     },
     {
       id: '3',
       sender: 'brand',
-      text: "We're looking for 1 Instagram Reel showcasing our sustainable fabrics. Budget is $500.",
-      time: '3:00 PM'
+      text: "We're looking for an Instagram Reel showcasing our sustainable fabrics.",
+      time: '3:00 PM',
     },
     {
       id: '4',
       sender: 'influencer',
       text: "That works for me! Could we extend the deadline to May 5th? I have a few shoots scheduled.",
-      time: '3:15 PM'
-    }
+      time: '3:15 PM',
+    },
   ];
 
   const handleSend = () => {
@@ -72,8 +78,8 @@ export function DealChat() {
           <Card glass>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <div className="text-muted-foreground mb-1">Budget</div>
-                <div className="text-foreground">{deal.proposedBudget}</div>
+                <div className="text-muted-foreground mb-1">Final Offer</div>
+                <div className="text-foreground">{deal.finalOffer}</div>
               </div>
               <div>
                 <div className="text-muted-foreground mb-1">Deadline</div>
@@ -91,7 +97,7 @@ export function DealChat() {
       {/* Messages */}
       <div className="flex-1 px-6 py-4 overflow-y-auto">
         <div className="max-w-md mx-auto space-y-4">
-          {messages.map(msg => (
+          {messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${msg.sender === 'influencer' ? 'justify-end' : 'justify-start'}`}
@@ -124,17 +130,12 @@ export function DealChat() {
             <h3 className="text-foreground mb-3">Finalize Deal</h3>
             <div className="space-y-2 text-sm mb-4">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment to Influencer</span>
-                <span className="text-foreground">$500</span>
+                <span className="text-muted-foreground">Final Offer</span>
+                <span className="text-foreground">{deal.finalOffer}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Platform Fee (10%)</span>
-                <span className="text-foreground">$50</span>
-              </div>
-              <div className="h-px bg-border my-2"></div>
-              <div className="flex justify-between">
-                <span className="text-foreground">Total</span>
-                <span className="text-foreground">$550</span>
+                <span className="text-muted-foreground">Deliverables</span>
+                <span className="text-foreground">{deal.deliverable}</span>
               </div>
             </div>
             <Button
