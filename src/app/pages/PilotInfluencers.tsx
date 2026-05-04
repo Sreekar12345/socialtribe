@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
+import { ArrowRight, BadgeCheck, MessageSquare, Search, SlidersHorizontal, TrendingUp, Users } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Search, AlertTriangle, BadgeCheck, TrendingUp, Users, Check, Pencil } from 'lucide-react';
-import { influencers } from '../data/influencers';
+import { SectionHeader } from '../components/FintechPrimitives';
 import { useCampaign } from '../context/CampaignContext';
 import { useAuth } from '../context/AuthContext';
+import { categories, influencers } from '../data/influencers';
 import { getNicheFilterFromIndustry, inr } from '../utils/money';
-
-const categories = ['All', 'Fitness', 'Food', 'Fashion', 'Travel', 'Beauty', 'Tech'];
 
 const followerOptions = [
   { label: 'Any', min: 0 },
@@ -16,232 +15,135 @@ const followerOptions = [
 ];
 
 export function PilotInfluencers() {
-  const nav = useNavigate();
-  const { selected, toggle, budget, setBudget } = useCampaign();
+  const navigate = useNavigate();
+  const { selected, toggle, budgetLabel } = useCampaign();
   const { profile } = useAuth();
-  const [cat, setCat] = useState(getNicheFilterFromIndustry(profile.industry));
-  const [folIdx, setFolIdx] = useState(0);
+  const [category, setCategory] = useState(getNicheFilterFromIndustry(profile.industry));
   const [query, setQuery] = useState('');
-  const [editingBudget, setEditingBudget] = useState(false);
-  const [draftBudget, setDraftBudget] = useState(String(budget));
-  const [previousBudget, setPreviousBudget] = useState(budget);
+  const [followerIndex, setFollowerIndex] = useState(0);
 
   const filtered = useMemo(() => {
-    return influencers.filter((i) => {
-      if (cat !== 'All' && i.niche !== cat) return false;
-      if (i.followers < followerOptions[folIdx].min) return false;
-      if (query && !i.name.toLowerCase().includes(query.toLowerCase())) return false;
-      return true;
+    return influencers.filter((creator) => {
+      const matchesCategory = category === 'All' || creator.niche === category;
+      const matchesFollowers = creator.followers >= followerOptions[followerIndex].min;
+      const matchesQuery =
+        query.trim().length === 0 ||
+        creator.name.toLowerCase().includes(query.toLowerCase()) ||
+        creator.handle.toLowerCase().includes(query.toLowerCase());
+      return matchesCategory && matchesFollowers && matchesQuery;
     });
-  }, [cat, folIdx, query]);
+  }, [category, followerIndex, query]);
 
-  const used = selected.reduce((s, id) => s + (influencers.find((i) => i.id === id)?.price ?? 0), 0);
-  const remaining = budget - used;
-  const over = remaining < 0;
-  const usedPct = Math.min(100, Math.max(0, Math.round((used / budget) * 100)));
-
-  const startBudgetEdit = () => {
-    setPreviousBudget(budget);
-    setDraftBudget(String(budget));
-    setEditingBudget(true);
-  };
-
-  const handleBudgetChange = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    setDraftBudget(digits);
-    if (digits) {
-      setBudget(Number(digits));
-    }
-  };
-
-  const finishBudgetEdit = () => {
-    if (!draftBudget || Number(draftBudget) <= 0) {
-      setBudget(previousBudget);
-      setDraftBudget(String(previousBudget));
-    }
-    setEditingBudget(false);
-  };
-
-  const cancelBudgetEdit = () => {
-    setBudget(previousBudget);
-    setDraftBudget(String(previousBudget));
-    setEditingBudget(false);
-  };
-
-  const upgradeBudget = () => {
-    const nextBudget = budget <= 10000 ? 20000 : budget + 10000;
-    setBudget(nextBudget);
-    setDraftBudget(String(nextBudget));
-    if (editingBudget) {
-      setPreviousBudget(nextBudget);
-    }
-  };
+  const selectedCreators = influencers.filter((creator) => selected.includes(creator.id));
+  const committed = selectedCreators.reduce((sum, creator) => sum + creator.price, 0);
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="sticky top-0 z-20 backdrop-blur-xl bg-black/60 border-b border-white/5">
-        <div className="px-5 pt-12 pb-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <div className="text-white">Customize selection</div>
-                <button type="button" onClick={startBudgetEdit} className="cursor-pointer text-white/40 transition hover:text-white" aria-label="Edit budget">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="text-xs text-white/40">{filtered.length} creators available</div>
-            </div>
-          </div>
-
-          <div className={`mt-3 rounded-2xl p-3 border transition-all ${
-            over ? 'bg-red-500/10 border-red-500/30' : 'bg-white/[0.03] border-white/10'
-          }`}>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-white/40 uppercase tracking-widest">Budget</span>
-              <span className="text-white tabular-nums">{inr(budget)}</span>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div className={`h-full transition-all ${over ? 'bg-red-400' : 'bg-white'}`} style={{ width: `${usedPct}%` }} />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px]">
-              {editingBudget ? (
-                <input
-                  autoFocus
-                  inputMode="numeric"
-                  value={draftBudget}
-                  onChange={(event) => handleBudgetChange(event.target.value)}
-                  onBlur={finishBudgetEdit}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') finishBudgetEdit();
-                    if (event.key === 'Escape') cancelBudgetEdit();
-                  }}
-                  className="w-28 border-b border-white/20 bg-transparent pb-0.5 text-white tabular-nums outline-none"
-                  aria-label="Edit budget amount"
-                />
-              ) : (
-                <span className="text-white/50">{selected.length} Influencers Selected</span>
-              )}
-              <span className="text-white/50" />
-            </div>
-            {over && (
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 text-[11px] text-red-300">
-                  <AlertTriangle className="w-3 h-3" /> You've exceeded your budget
-                </div>
-                <button
-                  type="button"
-                  onClick={upgradeBudget}
-                  className="rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1 text-[11px] text-red-200 transition hover:bg-red-400/15"
-                >
-                  Upgrade Budget
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-            <Search className="w-4 h-4 text-white/40" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by name"
-              className="flex-1 bg-transparent outline-none text-white placeholder:text-white/30 text-sm"
-            />
-          </div>
-
-          <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
-            {categories.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all border ${
-                  cat === c ? 'bg-white text-black border-white' : 'bg-white/5 text-white/70 border-white/10'
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-2 flex gap-2">
-            <button
-              onClick={() => setFolIdx((i) => (i + 1) % followerOptions.length)}
-              className="px-3 py-1.5 rounded-full text-xs bg-white/5 text-white/70 border border-white/10"
-            >
-              Followers: {followerOptions[folIdx].label}
-            </button>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="fin-eyebrow">Explore</div>
+          <h1 className="mt-2 text-[1.65rem] font-semibold tracking-[-0.03em] text-white">Find creators fast</h1>
         </div>
+        <button type="button" onClick={() => navigate('/ai-plan')} className="fin-chip">
+          AI shortlist
+        </button>
       </div>
 
-      <div className="flex-1 px-5 py-4 space-y-3">
-        {filtered.map((inf) => {
-          const isSelected = selected.includes(inf.id);
-          const fits = inf.price <= remaining + (isSelected ? inf.price : 0);
-          return (
-            <div
-              key={inf.id}
-              className={`relative rounded-2xl p-4 backdrop-blur-xl transition-all ${
-                isSelected
-                  ? 'bg-white/[0.08] border border-white/40'
-                  : 'bg-white/[0.03] border border-white/10'
-              }`}
-            >
-              <div className="flex gap-3 items-center">
-                <img src={inf.image} alt={inf.name} className="w-14 h-14 rounded-full object-cover ring-1 ring-white/10" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="text-white truncate">{inf.name}</span>
-                    {inf.verified && <BadgeCheck className="w-4 h-4 text-white/70 shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/70">{inf.niche}</span>
-                    <span className="text-[11px] text-white/40 flex items-center gap-1"><Users className="w-3 h-3" />{inf.followersLabel}</span>
-                    <span className="text-[11px] text-white/40 flex items-center gap-1"><TrendingUp className="w-3 h-3" />{inf.engagement}%</span>
-                  </div>
-                  <div className="mt-1.5">
-                    {fits ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 uppercase tracking-wider">Fits your budget</span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/40 uppercase tracking-wider">Over budget</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => toggle(inf.id)}
-                className={`mt-3 w-full py-2 rounded-xl transition-all flex items-center justify-center gap-2 ${
-                  isSelected
-                    ? 'bg-white text-black'
-                    : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                }`}
-              >
-                {isSelected ? (<><Check className="w-4 h-4" /> Selected</>) : 'Select'}
-              </button>
-            </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="text-center text-white/40 py-12 text-sm">No creators match these filters.</div>
-        )}
-        <div className="h-28" />
-      </div>
-
-      {selected.length > 0 && (
-        <div className="sticky bottom-0 z-20 backdrop-blur-xl bg-black/70 border-t border-white/10 px-5 py-4">
-          <button
-            onClick={() => nav('/campaign')}
-            disabled={over}
-            className="w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-between px-5 hover:bg-white/90 transition-all disabled:opacity-40"
-          >
-            <span className="tabular-nums">{selected.length} selected</span>
-            <span className="flex items-center gap-1">Continue <ArrowRight className="w-4 h-4" /></span>
+      <div className="fin-panel-lime">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="fin-eyebrow text-black/60">Campaign budget</div>
+            <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-black">{budgetLabel}</div>
+            <p className="mt-2 text-sm text-black/65">{selected.length} creators selected - {inr(committed)} committed</p>
+          </div>
+          <button type="button" onClick={() => navigate('/budget')} className="rounded-full bg-black px-4 py-2 text-sm text-white">
+            Tune budget
           </button>
         </div>
-      )}
+      </div>
+
+      <div className="fin-input-group">
+        <Search className="h-4 w-4 text-zinc-500" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search by creator name or handle"
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
+        />
+      </div>
+
+      <div className="app-scroll-row">
+        {categories.map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            onClick={() => setCategory(entry)}
+            className={`fin-chip ${category === entry ? 'fin-chip-active' : ''}`}
+          >
+            {entry}
+          </button>
+        ))}
+        <button type="button" onClick={() => setFollowerIndex((index) => (index + 1) % followerOptions.length)} className="fin-chip">
+          <SlidersHorizontal className="h-3.5 w-3.5" /> {followerOptions[followerIndex].label}
+        </button>
+      </div>
+
+      <section>
+        <SectionHeader title={`${filtered.length} creators`} />
+        <div className="space-y-4">
+          {filtered.map((creator) => {
+            const isSelected = selected.includes(creator.id);
+
+            return (
+              <article key={creator.id} className="fin-card">
+                <img src={creator.image} alt={creator.name} className="app-media" />
+                <div className="mt-4 flex items-center gap-3">
+                  <img src={creator.image} alt="" className="app-avatar" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate text-sm font-medium text-white">{creator.name}</span>
+                      {creator.verified ? <BadgeCheck className="h-4 w-4 text-lime-200" /> : null}
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-400">{creator.handle} - {creator.niche}</div>
+                  </div>
+                  <span className={`fin-badge ${creator.available ? 'fin-badge-success' : 'fin-badge-warning'}`}>
+                    {creator.available ? 'Available' : 'Booked'}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="fin-chip">
+                    <Users className="h-3.5 w-3.5" /> {creator.followersLabel}
+                  </span>
+                  <span className="fin-chip">
+                    <TrendingUp className="h-3.5 w-3.5" /> {creator.engagement}% ER
+                  </span>
+                  <span className="fin-chip">{inr(creator.price)}</span>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={() => navigate(`/chat/${creator.id}`, { state: { from: '/explore' } })} className="fin-button-secondary flex-1">
+                    <MessageSquare className="h-4 w-4" /> Message
+                  </button>
+                  <button type="button" onClick={() => toggle(creator.id)} className={`flex-1 ${isSelected ? 'fin-button-primary' : 'fin-button-secondary'}`}>
+                    {isSelected ? 'Selected' : 'Collaborate'}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {filtered.length === 0 ? <div className="fin-empty-state mt-4">No creators match this filter set yet.</div> : null}
+      </section>
+
+      {selected.length > 0 ? (
+        <div className="fin-sticky-actions -mx-4">
+          <button type="button" onClick={() => navigate('/campaign')} className="fin-button-primary w-full">
+            Continue with {selected.length} creators <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

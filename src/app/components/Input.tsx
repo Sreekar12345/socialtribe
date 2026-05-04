@@ -1,15 +1,23 @@
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+import type { InputHTMLAttributes } from 'react';
+import { cn } from './ui/utils';
+
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  helper?: string;
 }
 
-export function Input({ label, className = '', ...props }: InputProps) {
+export function Input({ label, helper, className, ...props }: InputProps) {
   return (
     <div className="flex flex-col gap-2">
-      {label && <label className="text-sm text-muted-foreground">{label}</label>}
+      {label ? <label className="fin-eyebrow">{label}</label> : null}
       <input
-        className={`bg-secondary border border-border rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-white/20 ${className}`}
+        className={cn(
+          'w-full rounded-2xl border border-white/10 bg-gray-800 px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-lime-200/60 focus:bg-zinc-800',
+          className,
+        )}
         {...props}
       />
+      {helper ? <p className="text-xs text-zinc-500">{helper}</p> : null}
     </div>
   );
 }

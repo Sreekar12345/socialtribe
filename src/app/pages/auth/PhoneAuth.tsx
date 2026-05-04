@@ -1,54 +1,58 @@
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router';
+import { useAuth } from '../../context/AuthContext';
+import { Button } from '../../components/Button';
+import { BackButton } from '../../components/FintechPrimitives';
+import { TopBar } from '../../components/TopBar';
 
 export function PhoneAuth() {
-  const nav = useNavigate();
+  const navigate = useNavigate();
+  const { role } = useAuth();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (!role) return <Navigate to="/auth/role" replace />;
 
   const send = () => {
     if (phone.replace(/\D/g, '').length < 6) return;
     setLoading(true);
-    setTimeout(() => nav('/auth/otp', { state: { phone } }), 700);
+    window.setTimeout(() => navigate('/auth/otp', { state: { phone } }), 700);
   };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14 pb-8">
-      <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-        <ArrowLeft className="w-4 h-4" />
-      </button>
+    <div className="fin-page">
+      <TopBar
+        left={<BackButton onClick={() => navigate('/auth')} />}
+        title="OTP login"
+        subtitle="Enter your number to receive a verification code."
+      />
 
-      <div className="mt-14">
-        <h1 className="text-white text-3xl tracking-tight">Enter your number</h1>
-        <p className="mt-2 text-white/50">We'll text you a 6-digit code.</p>
-      </div>
-
-      <div className="mt-8">
-        <label className="text-xs uppercase tracking-widest text-white/40">Phone</label>
-        <div className="mt-2 flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-white/30">
-          <span className="text-white/50 text-sm">+1</span>
-          <div className="w-px h-5 bg-white/10" />
+      <div className="rounded-[24px] border border-white/10 bg-gray-800 p-4">
+        <label className="fin-eyebrow">Phone number</label>
+        <div className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3">
+          <span className="text-sm text-zinc-400">+91</span>
+          <div className="h-5 w-px bg-white/10" />
           <input
-            type="tel"
-            inputMode="numeric"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(555) 123-4567"
-            className="flex-1 bg-transparent outline-none text-white placeholder:text-white/30 text-sm"
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="98765 43210"
+            className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
           />
         </div>
       </div>
 
-      <div className="flex-1" />
-
-      <button
-        onClick={send}
-        disabled={loading}
-        className="mt-8 w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-      >
-        {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : 'Send OTP'}
-      </button>
+      <div className="mt-auto">
+        <Button fullWidth onClick={send} disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Sending
+            </>
+          ) : (
+            'Send OTP'
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

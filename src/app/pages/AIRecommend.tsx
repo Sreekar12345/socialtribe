@@ -1,204 +1,105 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Loader2, Sparkles, TrendingUp, Users } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Loader2, Pencil, Sparkles, TrendingUp, Users, Zap } from 'lucide-react';
+import { BackButton, ScreenHeader } from '../components/FintechPrimitives';
 import { useCampaign } from '../context/CampaignContext';
 import { useAuth } from '../context/AuthContext';
 import { influencers } from '../data/influencers';
 import { aiRecommend, getNicheFilterFromIndustry, inr } from '../utils/money';
 
 export function AIRecommend() {
-  const nav = useNavigate();
-  const { budget, setBudget, setSelected } = useCampaign();
+  const navigate = useNavigate();
+  const { budgetLabel, budgetMin, budgetMax, setSelected } = useCampaign();
   const { profile } = useAuth();
   const [thinking, setThinking] = useState(true);
-  const [editingBudget, setEditingBudget] = useState(false);
-  const [draftBudget, setDraftBudget] = useState(String(budget));
-  const [previousBudget, setPreviousBudget] = useState(budget);
-  const nicheFilter = getNicheFilterFromIndustry(profile.industry);
-  const filterLabel = nicheFilter === 'All' ? 'best-fit' : nicheFilter.toLowerCase();
 
-  const { picked, spent } = useMemo(() => aiRecommend(influencers, budget, nicheFilter), [budget, nicheFilter]);
-  const remaining = Math.max(0, budget - spent);
-  const usedPct = Math.min(100, Math.round((spent / budget) * 100));
+  const niche = getNicheFilterFromIndustry(profile.industry);
+  const { picked, spent } = useMemo(
+    () => aiRecommend(influencers, { min: budgetMin, max: budgetMax }, niche),
+    [budgetMax, budgetMin, niche],
+  );
 
   useEffect(() => {
-    const t = setTimeout(() => setThinking(false), 1100);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setThinking(false), 900);
+    return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!editingBudget) {
-      setDraftBudget(String(budget));
-    }
-  }, [budget, editingBudget]);
-
   const proceed = () => {
-    setSelected(picked.map((i) => i.id));
-    nav('/campaign');
+    setSelected(picked.map((item) => item.id));
+    navigate('/campaign');
   };
 
   const customize = () => {
-    setSelected(picked.map((i) => i.id));
-    nav('/influencers');
-  };
-
-  const startBudgetEdit = () => {
-    setPreviousBudget(budget);
-    setDraftBudget(String(budget));
-    setEditingBudget(true);
-  };
-
-  const handleBudgetChange = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    setDraftBudget(digits);
-    if (digits) {
-      setBudget(Number(digits));
-    }
-  };
-
-  const finishBudgetEdit = () => {
-    if (!draftBudget || Number(draftBudget) <= 0) {
-      setBudget(previousBudget);
-      setDraftBudget(String(previousBudget));
-    }
-    setEditingBudget(false);
-  };
-
-  const cancelBudgetEdit = () => {
-    setBudget(previousBudget);
-    setDraftBudget(String(previousBudget));
-    setEditingBudget(false);
+    setSelected(picked.map((item) => item.id));
+    navigate('/explore');
   };
 
   if (thinking) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full px-6">
-        <div className="relative">
-          <div className="absolute inset-0 blur-2xl bg-white/20 rounded-full" />
-          <div className="relative w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center">
-            <Sparkles className="w-7 h-7" />
+      <div className="fin-page items-center justify-center">
+        <div className="fin-card w-full max-w-sm text-center">
+          <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-lime-200">
+            <Sparkles className="h-6 w-6" />
           </div>
-        </div>
-        <div className="mt-6 flex items-center gap-2 text-white/70 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Building your plan…
-        </div>
-        <div className="mt-8 space-y-1.5 text-[11px] text-white/40 text-center">
-          <div>Matching {filterLabel} creators</div>
-          <div>Optimizing reach × engagement</div>
-          <div>Fitting {inr(budget)} budget</div>
+          <div className="mt-5 flex items-center justify-center gap-2 text-sm text-zinc-300">
+            <Loader2 className="h-4 w-4 animate-spin" /> Ranking creators for your budget
+          </div>
+          <div className="mt-3 text-xs text-zinc-500">Matching by niche, engagement, and price fit</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="flex-1">
-          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/60 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
-            <Sparkles className="w-3 h-3" /> Powered by SocialTribe AI
-          </div>
-          <div className="mt-1.5 text-white">Recommended plan for {inr(budget)}</div>
-        </div>
-      </div>
+    <div className="fin-page">
+      <BackButton onClick={() => navigate(-1)} />
+      <ScreenHeader
+        eyebrow="AI shortlist"
+        title={`Best-fit creators for ${budgetLabel}`}
+        subtitle="A quick shortlist ranked by engagement, price, and audience fit."
+      />
 
-      <div className="px-5 space-y-4 flex-1">
-        <div className="rounded-2xl p-4 bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-white/50 uppercase tracking-widest">Budget utilization</span>
-              <button type="button" onClick={startBudgetEdit} className="cursor-pointer text-white/40 transition hover:text-white" aria-label="Edit budget">
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <span className="text-white tabular-nums">{usedPct}%</span>
-          </div>
-          <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full bg-white" style={{ width: `${usedPct}%` }} />
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs">
-            {editingBudget ? (
-              <input
-                autoFocus
-                inputMode="numeric"
-                value={draftBudget}
-                onChange={(event) => handleBudgetChange(event.target.value)}
-                onBlur={finishBudgetEdit}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') finishBudgetEdit();
-                  if (event.key === 'Escape') cancelBudgetEdit();
-                }}
-                className="w-28 border-b border-white/20 bg-transparent pb-0.5 text-white tabular-nums outline-none"
-                aria-label="Edit budget amount"
-              />
-            ) : (
-              <div>
-                <div className="text-white tabular-nums">{picked.length} Influencers Selected</div>
-              </div>
-            )}
-            <div className="text-right" />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {picked.map((i) => (
-            <div key={i.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
-              <img src={i.image} className="w-11 h-11 rounded-full object-cover" />
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-sm truncate">{i.name}</div>
-                <div className="flex items-center gap-2 text-[11px] text-white/40 mt-0.5">
-                  <span>{i.niche}</span>
-                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{i.followersLabel}</span>
-                  <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" />{i.engagement}%</span>
-                </div>
-              </div>
-              <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 uppercase tracking-wider">Fits</span>
-            </div>
-          ))}
-          {picked.length === 0 && (
-            <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-white/40 text-sm">
-              No creators fit this budget. Try a higher amount.
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-white/50">
-            <Sparkles className="w-3 h-3" /> Why this plan
-          </div>
-          <p className="mt-2 text-sm text-white/80 leading-relaxed">
-            Balances high engagement and reach across multiple audience segments to maximize visibility within your budget.
-          </p>
-        </div>
-
-        <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-emerald-300" />
-          </div>
+      <div className="fin-panel-lime">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-white/40">Expected performance</div>
-            <div className="text-white text-sm">High · est. reach 280K+</div>
+            <div className="fin-eyebrow text-black/60">Recommended spend</div>
+            <div className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-black">{inr(spent)}</div>
           </div>
+          <span className="rounded-full bg-black px-3 py-1.5 text-xs text-white">{picked.length} creators</span>
         </div>
-        <div className="h-28" />
       </div>
 
-      <div className="sticky bottom-0 backdrop-blur-xl bg-black/70 border-t border-white/10 px-5 py-4 space-y-2">
-        <button
-          onClick={proceed}
-          disabled={picked.length === 0}
-          className="w-full py-3.5 rounded-2xl bg-white text-black disabled:opacity-40"
-        >
-          Proceed with this plan
+      <div className="space-y-3">
+        {picked.map((creator) => (
+          <div key={creator.id} className="fin-card">
+            <div className="flex items-center gap-3">
+              <img src={creator.image} alt={creator.name} className="h-12 w-12 rounded-full object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-white">{creator.name}</div>
+                <div className="mt-1 text-xs text-zinc-400">{creator.handle} - {creator.niche}</div>
+              </div>
+              <span className="text-sm font-medium text-lime-200">{inr(creator.price)}</span>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="fin-chip">
+                <Users className="h-3.5 w-3.5" /> {creator.followersLabel}
+              </span>
+              <span className="fin-chip">
+                <TrendingUp className="h-3.5 w-3.5" /> {creator.engagement}% ER
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {picked.length === 0 ? <div className="fin-empty-state">No creators fit this budget. Increase the amount and retry.</div> : null}
+      </div>
+
+      <div className="fin-sticky-actions -mx-4 space-y-3">
+        <button type="button" onClick={proceed} disabled={picked.length === 0} className="fin-button-primary w-full">
+          Use this shortlist <ArrowRight className="h-4 w-4" />
         </button>
-        <button
-          onClick={customize}
-          className="w-full py-3 rounded-2xl bg-white/[0.04] border border-white/10 text-white text-sm"
-        >
-          Customize selection
+        <button type="button" onClick={customize} className="fin-button-secondary w-full">
+          Customize manually
         </button>
       </div>
     </div>

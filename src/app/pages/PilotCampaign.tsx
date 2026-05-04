@@ -1,136 +1,126 @@
+import { ArrowRight, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, X, AlertTriangle } from 'lucide-react';
+import { BackButton, ScreenHeader } from '../components/FintechPrimitives';
 import { useCampaign } from '../context/CampaignContext';
 import { influencers } from '../data/influencers';
+import { getCampaignBudgetLimit } from '../utils/campaignBudget';
 import { inr } from '../utils/money';
-import { calculatePrice, DELIVERABLE_OPTIONS, DeliverableKey } from '../utils/pricing';
+import { calculatePrice, DELIVERABLE_OPTIONS, type DeliverableKey } from '../utils/pricing';
 
 export function PilotCampaign() {
-  const nav = useNavigate();
-  const { selected, toggle, campaign, setCampaign, budget } = useCampaign();
-  const deliverables = campaign.deliverables;
+  const navigate = useNavigate();
+  const { selected, toggle, campaign, setCampaign, budgetLabel, budgetMax } =
+    useCampaign();
+  const picked = influencers.filter((creator) => selected.includes(creator.id));
 
-  const picks = selected.map((id) => influencers.find((i) => i.id === id)!).filter(Boolean);
-  const subtotal = deliverables.length
-    ? picks.reduce((sum, influencer) => sum + calculatePrice(influencer.price, deliverables), 0)
-    : 0;
-  const over = subtotal > budget;
+  const subtotal = campaign.deliverables.length
+    ? picked.reduce((sum, creator) => sum + calculatePrice(creator.price, campaign.deliverables), 0)
+    : picked.reduce((sum, creator) => sum + creator.price, 0);
+  const overBudget = subtotal > getCampaignBudgetLimit(budgetMax);
 
-  const toggleDeliverable = (type: DeliverableKey) => {
-    if (deliverables.includes(type)) {
-      setCampaign({ ...campaign, deliverables: deliverables.filter((d) => d !== type) });
-    } else {
-      setCampaign({ ...campaign, deliverables: [...deliverables, type] });
+  const toggleDeliverable = (value: DeliverableKey) => {
+    if (campaign.deliverables.includes(value)) {
+      setCampaign({ ...campaign, deliverables: campaign.deliverables.filter((item) => item !== value) });
+      return;
     }
+
+    setCampaign({ ...campaign, deliverables: [...campaign.deliverables, value] });
   };
 
-  const canProceed =
-    picks.length > 0 &&
+  const canContinue =
+    picked.length > 0 &&
     campaign.name.trim().length > 0 &&
     campaign.deadline.trim().length > 0 &&
-    deliverables.length > 0 &&
-    !over;
+    campaign.deliverables.length > 0 &&
+    !overBudget;
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <div className="text-white">Build campaign</div>
-          <div className="text-xs text-white/40">Step 2 of 3</div>
+    <div className="fin-page">
+      <BackButton onClick={() => navigate(-1)} />
+      <ScreenHeader
+        eyebrow="Campaign brief"
+        title="Shape the collaboration"
+        subtitle="Lock the deliverables, timeline, and creator roster before payment."
+      />
+
+      <div className="fin-card">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="fin-eyebrow">Budget ceiling</div>
+            <div className="mt-2 text-xl font-semibold text-white">{budgetLabel}</div>
+          </div>
+          <div className="text-right">
+            <div className="fin-eyebrow">Projected spend</div>
+            <div className="mt-2 text-xl font-semibold text-lime-200">{inr(subtotal)}</div>
+          </div>
         </div>
       </div>
 
-      <div className="px-5 space-y-6 flex-1">
-        <div className="rounded-2xl p-3 bg-white/[0.03] border border-white/10 flex items-center justify-between text-[11px]">
-          <span className="text-white/50 uppercase tracking-widest">Budget</span>
-          <span className="text-white tabular-nums">{inr(budget)}</span>
-        </div>
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-white/40 mb-2">Selected ({picks.length})</div>
-          <div className="space-y-2">
-            {picks.map((i) => (
-              <div key={i.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
-                <img src={i.image} className="w-9 h-9 rounded-full object-cover" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm truncate">{i.name}</div>
-                  <div className="text-[11px] text-white/40">{i.niche} · {i.followersLabel}</div>
-                </div>
-                <button onClick={() => toggle(i.id)} className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50">
-                  <X className="w-3.5 h-3.5" />
-                </button>
+      <div className="space-y-3">
+        {picked.map((creator) => (
+          <div key={creator.id} className="fin-card">
+            <div className="flex items-center gap-3">
+              <img src={creator.image} alt={creator.name} className="h-11 w-11 rounded-full object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-white">{creator.name}</div>
+                <div className="mt-1 text-xs text-zinc-400">{creator.niche} - {creator.followersLabel}</div>
               </div>
-            ))}
-            {picks.length === 0 && (
-              <div className="text-center text-white/40 text-sm py-8 rounded-xl border border-dashed border-white/10">
-                No creators selected.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs uppercase tracking-widest text-white/40">Campaign name</label>
-            <input
-              value={campaign.name}
-              onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
-              placeholder="Summer drop 2026"
-              className="mt-2 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder:text-white/30 outline-none focus:border-white/30 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-widest text-white/40">Deliverable</label>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {DELIVERABLE_OPTIONS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  onClick={() => toggleDeliverable(d.value)}
-                  className={`py-3 rounded-xl text-sm border transition-all ${
-                    deliverables.includes(d.value)
-                      ? 'bg-white text-black border-white'
-                      : 'bg-white/[0.03] text-white/70 border-white/10'
-                  }`}
-                >
-                  {d.label}
-                </button>
-              ))}
+              <button type="button" onClick={() => toggle(creator.id)} className="fin-topbar-action" aria-label="Remove creator">
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
+        ))}
+      </div>
 
-          <div>
-            <label className="text-xs uppercase tracking-widest text-white/40">Deadline</label>
-            <input
-              type="date"
-              value={campaign.deadline}
-              onChange={(e) => setCampaign({ ...campaign, deadline: e.target.value })}
-              className="mt-2 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white outline-none focus:border-white/30 text-sm"
-            />
+      <div className="fin-card space-y-4">
+        <div>
+          <label className="fin-eyebrow">Campaign name</label>
+          <input
+            value={campaign.name}
+            onChange={(event) => setCampaign({ ...campaign, name: event.target.value })}
+            placeholder="Campus summer push"
+            className="fin-input mt-2"
+          />
+        </div>
+
+        <div>
+          <label className="fin-eyebrow">Deliverables</label>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {DELIVERABLE_OPTIONS.map((entry) => (
+              <button
+                key={entry.value}
+                type="button"
+                onClick={() => toggleDeliverable(entry.value)}
+                className={`fin-chip ${campaign.deliverables.includes(entry.value) ? 'fin-chip-active' : ''}`}
+              >
+                {entry.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {over && (
-          <div className="rounded-xl p-3 bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-sm text-red-300">
-            <AlertTriangle className="w-4 h-4" /> Selection exceeds your {inr(budget)} budget.
-          </div>
-        )}
-        <div className="h-28" />
+        <div>
+          <label className="fin-eyebrow">Deadline</label>
+          <input
+            type="date"
+            value={campaign.deadline}
+            onChange={(event) => setCampaign({ ...campaign, deadline: event.target.value })}
+            className="fin-input mt-2"
+          />
+        </div>
       </div>
 
-      <div className="sticky bottom-0 backdrop-blur-xl bg-black/70 border-t border-white/10 px-5 py-4">
-        <button
-          disabled={!canProceed}
-          onClick={() => nav('/confirm')}
-          className="w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 disabled:opacity-40"
-        >
-          Proceed to Confirm <ArrowRight className="w-4 h-4" />
+      {overBudget ? (
+        <div className="fin-panel-pink">
+          Your selection exceeds the current budget. Remove a creator or raise the budget to continue.
+        </div>
+      ) : null}
+
+      <div className="fin-sticky-actions -mx-4">
+        <button type="button" disabled={!canContinue} onClick={() => navigate('/confirm')} className="fin-button-primary w-full">
+          Review payment <ArrowRight className="h-4 w-4" />
         </button>
-        <p className="mt-2 text-center text-[11px] text-white/40">Full pricing revealed at payment</p>
       </div>
     </div>
   );

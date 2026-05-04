@@ -1,104 +1,84 @@
+import { Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Button } from '../../components/Button';
+import { BackButton } from '../../components/FintechPrimitives';
+import { TopBar } from '../../components/TopBar';
 import { useAuth } from '../../context/AuthContext';
 
 export function OtpVerify() {
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const { role } = useAuth();
   const { state } = useLocation() as { state?: { phone?: string } };
   const phone = state?.phone ?? '';
-
-  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
-  const [resent, setResent] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     refs.current[0]?.focus();
   }, []);
 
+  if (!role) return <Navigate to="/auth/role" replace />;
+
   const code = digits.join('');
   const complete = code.length === 6;
-
-  const update = (i: number, v: string) => {
-    const val = v.replace(/\D/g, '').slice(-1);
-    const next = [...digits];
-    next[i] = val;
-    setDigits(next);
-    if (val && i < 5) refs.current[i + 1]?.focus();
-  };
-
-  const onKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus();
-  };
-
-  const onPaste = (e: React.ClipboardEvent) => {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (!text) return;
-    e.preventDefault();
-    const next = text.split('').concat(Array(6).fill('')).slice(0, 6);
-    setDigits(next);
-    refs.current[Math.min(text.length, 5)]?.focus();
-  };
 
   const verify = () => {
     if (!complete) return;
     setLoading(true);
-    setTimeout(() => {
-      if (role === 'influencer') nav('/onboard/influencer');
-      else nav('/onboard/brand');
-    }, 800);
+    window.setTimeout(() => {
+      navigate(role === 'influencer' ? '/influencer/setup' : '/brand/setup');
+    }, 700);
   };
 
-  useEffect(() => {
-    if (complete) verify();
-  }, [complete]);
+  const updateDigit = (index: number, value: string) => {
+    const next = value.replace(/\D/g, '').slice(-1);
+    const copy = [...digits];
+    copy[index] = next;
+    setDigits(copy);
+    if (next && index < copy.length - 1) refs.current[index + 1]?.focus();
+  };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14 pb-8">
-      <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-        <ArrowLeft className="w-4 h-4" />
-      </button>
+    <div className="fin-page">
+      <TopBar
+        left={<BackButton onClick={() => navigate('/auth/phone')} />}
+        title="Verify OTP"
+        subtitle={`Code sent to ${phone || 'your number'}.`}
+      />
 
-      <div className="mt-14">
-        <h1 className="text-white text-3xl tracking-tight">Verify</h1>
-        <p className="mt-2 text-white/50">
-          Code sent to <span className="text-white/80">+1 {phone || '•••• •••'}</span>
-        </p>
+      <div className="rounded-[24px] border border-white/10 bg-gray-800 p-4">
+        <div className="flex justify-between gap-2">
+          {digits.map((digit, index) => (
+            <input
+              key={index}
+              ref={(element) => {
+                refs.current[index] = element;
+              }}
+              value={digit}
+              onChange={(event) => updateDigit(index, event.target.value)}
+              maxLength={1}
+              className="h-14 w-12 rounded-2xl border border-white/10 bg-neutral-950 text-center text-lg text-white outline-none focus:border-lime-200/60"
+            />
+          ))}
+        </div>
       </div>
 
-      <div className="mt-10 flex gap-2 justify-between" onPaste={onPaste}>
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => (refs.current[i] = el)}
-            value={d}
-            onChange={(e) => update(i, e.target.value)}
-            onKeyDown={(e) => onKey(i, e)}
-            inputMode="numeric"
-            maxLength={1}
-            className="w-12 h-14 text-center rounded-xl bg-white/[0.03] border border-white/10 text-white text-xl outline-none focus:border-white/40 tabular-nums"
-          />
-        ))}
+      <div className="mt-auto space-y-3">
+        <Button fullWidth onClick={verify} disabled={!complete || loading}>
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Verifying
+            </>
+          ) : (
+            'Verify and continue'
+          )}
+        </Button>
+        <Button variant="ghost" fullWidth onClick={() => setDigits(['', '', '', '', '', ''])}>
+          Resend OTP
+        </Button>
       </div>
-
-      <button
-        onClick={() => setResent(true)}
-        className="mt-6 self-start text-xs text-white/50 hover:text-white"
-      >
-        {resent ? 'Code resent ✓' : 'Resend OTP'}
-      </button>
-
-      <div className="flex-1" />
-
-      <button
-        onClick={verify}
-        disabled={!complete || loading}
-        className="mt-8 w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-      >
-        {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</> : 'Verify & Continue'}
-      </button>
     </div>
   );
 }

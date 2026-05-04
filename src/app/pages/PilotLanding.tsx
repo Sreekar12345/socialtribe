@@ -1,65 +1,173 @@
+import { ArrowRight, MessageSquare, Plus, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ArrowRight, BadgeCheck, Lock, Zap } from 'lucide-react';
+import { SectionHeader } from '../components/FintechPrimitives';
+import { useCampaign } from '../context/CampaignContext';
+import { influencers } from '../data/influencers';
+import { inr } from '../utils/money';
+import { formatDeliverablesSummary } from '../utils/pricing';
+
+const feedCopy = [
+  'Gym routine reel with product mentions built into the hook.',
+  'Cafe walkthrough post with limited-time offer and clear CTA.',
+  'Style edit carousel that drives saves before launch day.',
+];
 
 export function PilotLanding() {
-  const nav = useNavigate();
+  const navigate = useNavigate();
+  const { budgetLabel, selected, campaign } = useCampaign();
+
+  const recommended = influencers.filter((item) => item.available).slice(0, 5);
+  const feedItems = recommended.slice(0, 3);
+  const selectedCreators = influencers.filter((item) => selected.includes(item.id));
+  const activeCreators = selectedCreators.length ? selectedCreators : recommended.slice(0, 3);
+  const deliverablesLabel = formatDeliverablesSummary(campaign.deliverables) || '1 Reel + 2 Stories';
+
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14 pb-8">
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center tabular-nums">S</div>
-        <span className="text-white tracking-wide">SocialTribe</span>
-      </div>
-
-      <div className="mt-20">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          Live marketplace · 2,400+ creators
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="fin-eyebrow">Home</div>
+          <h1 className="mt-2 text-[1.65rem] font-semibold tracking-[-0.03em] text-white">Discover and book faster</h1>
         </div>
-        <h1 className="mt-6 text-white text-[40px] leading-[1.1] tracking-tight">
-          Hire 10 Influencers<br />
-          <span className="bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent">in 5 minutes.</span>
-        </h1>
-        <p className="mt-5 text-white/60 leading-relaxed">
-          No DMs. No negotiation chaos. Fixed pricing. Instant booking.
-        </p>
+        <button type="button" onClick={() => navigate('/wallet')} className="fin-chip fin-chip-active">
+          {budgetLabel} live
+        </button>
       </div>
 
-      <div className="mt-10 grid grid-cols-3 gap-3">
-        {[
-          { icon: BadgeCheck, label: 'Verified creators' },
-          { icon: Lock, label: 'Escrow payments' },
-          { icon: Zap, label: 'Instant booking' },
-        ].map((t) => (
-          <div key={t.label} className="rounded-xl bg-white/[0.03] border border-white/10 p-3 flex flex-col items-start gap-2">
-            <t.icon className="w-4 h-4 text-white/80" />
-            <span className="text-[11px] text-white/60 leading-tight">{t.label}</span>
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" onClick={() => navigate('/budget')} className="fin-card text-left">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-lime-200">
+            <Plus className="h-4 w-4" />
           </div>
-        ))}
+          <div className="mt-4 text-sm font-medium text-white">Create campaign</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-400">Set a budget, pick creators, and lock the brief.</div>
+        </button>
+        <button type="button" onClick={() => navigate('/wallet')} className="fin-card text-left">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-lime-200">
+            <Wallet className="h-4 w-4" />
+          </div>
+          <div className="mt-4 text-sm font-medium text-white">Add funds</div>
+          <div className="mt-1 text-xs leading-5 text-zinc-400">Top up your wallet before you start booking creators.</div>
+        </button>
       </div>
 
-      <div className="mt-10 rounded-2xl p-5 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10">
-        <div className="text-xs text-white/40 uppercase tracking-widest">Transparent pricing</div>
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-white tabular-nums text-2xl">10%</div>
-            <div className="text-white/50 text-xs mt-1">platform fee · all-in</div>
-          </div>
-          <div className="text-right">
-            <div className="text-white tabular-nums text-2xl">~48h</div>
-            <div className="text-white/50 text-xs mt-1">avg delivery</div>
-          </div>
+      <section>
+        <SectionHeader
+          title="Recommended creators"
+          action={
+            <button type="button" onClick={() => navigate('/explore')} className="app-section-link">
+              See all
+            </button>
+          }
+        />
+        <div className="app-scroll-row">
+          {recommended.map((creator) => (
+            <button
+              key={creator.id}
+              type="button"
+              onClick={() => navigate('/explore')}
+              className="w-[250px] shrink-0 rounded-2xl border border-white/10 bg-gray-800 p-3 text-left"
+            >
+              <img src={creator.image} alt={creator.name} className="h-32 w-full rounded-xl object-cover" />
+              <div className="mt-3 flex items-center gap-3">
+                <img src={creator.image} alt="" className="h-10 w-10 rounded-full object-cover" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-white">{creator.name}</div>
+                  <div className="mt-1 text-xs text-zinc-400">
+                    {creator.followersLabel} followers - {creator.engagement}% ER
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="fin-chip">{creator.niche}</span>
+                <span className="text-sm font-medium text-lime-200">{inr(creator.price)}</span>
+              </div>
+            </button>
+          ))}
         </div>
-      </div>
+      </section>
 
-      <div className="flex-1" />
+      <section>
+        <SectionHeader
+          title="Active campaigns"
+          action={
+            <button type="button" onClick={() => navigate('/campaigns')} className="app-section-link">
+              Open queue
+            </button>
+          }
+        />
+        <div className="app-scroll-row">
+          <button
+            type="button"
+            onClick={() => navigate('/campaigns')}
+            className="w-[280px] shrink-0 rounded-2xl border border-white/10 bg-gray-800 p-4 text-left"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="fin-badge fin-badge-success">Live</span>
+              <span className="text-xs text-zinc-500">{campaign.deadline || 'Due in 4 days'}</span>
+            </div>
+            <div className="mt-3 text-base font-semibold text-white">{campaign.name || 'Campus creator drop'}</div>
+            <div className="mt-1 text-sm text-zinc-400">{deliverablesLabel}</div>
+            <div className="mt-4 flex -space-x-2">
+              {activeCreators.map((creator) => (
+                <img key={creator.id} src={creator.image} alt={creator.name} className="h-9 w-9 rounded-full border-2 border-zinc-950 object-cover" />
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-sm text-zinc-400">
+              <span>{activeCreators.length} creators booked</span>
+              <span className="text-lime-200">Track progress</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/inbox')}
+            className="w-[240px] shrink-0 rounded-2xl border border-white/10 bg-gray-800 p-4 text-left"
+          >
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-lime-200">
+              <MessageSquare className="h-4 w-4" />
+            </div>
+            <div className="mt-4 text-base font-semibold text-white">Inbox</div>
+            <div className="mt-2 text-sm leading-6 text-zinc-400">Negotiate deliverables, share feedback, and unlock revisions without leaving the app.</div>
+          </button>
+        </div>
+      </section>
 
-      <button
-        onClick={() => nav('/role')}
-        className="mt-10 w-full py-4 rounded-2xl bg-white text-black flex items-center justify-center gap-2 hover:bg-white/90 transition-all"
-      >
-        Start Hiring <ArrowRight className="w-4 h-4" />
-      </button>
-      <p className="mt-3 text-center text-xs text-white/40">No sign-up. Browse 2,400+ verified creators.</p>
+      <section>
+        <SectionHeader title="Creator feed" />
+        <div className="space-y-4">
+          {feedItems.map((creator, index) => (
+            <article key={creator.id} className="fin-card">
+              <img src={creator.image} alt={creator.name} className="app-media" />
+              <div className="mt-4 flex items-center gap-3">
+                <img src={creator.image} alt="" className="app-avatar" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-white">{creator.name}</div>
+                  <div className="mt-1 text-xs text-zinc-400">
+                    {creator.handle} - {creator.niche}
+                  </div>
+                </div>
+                <button type="button" onClick={() => navigate('/explore')} className="fin-chip">
+                  View
+                </button>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-zinc-300">{feedCopy[index]}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="fin-chip">{creator.engagement}% ER</span>
+                <span className="fin-chip">{creator.followersLabel} reach</span>
+                <span className="fin-chip">{inr(creator.price)} rate</span>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={() => navigate('/explore')} className="fin-button-secondary flex-1">
+                  View analytics
+                </button>
+                <button type="button" onClick={() => navigate('/budget')} className="fin-button-primary flex-1">
+                  Book now <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

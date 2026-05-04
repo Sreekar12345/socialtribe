@@ -1,83 +1,138 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { BackButton, ScreenHeader } from '../components/FintechPrimitives';
 import { useCampaign } from '../context/CampaignContext';
+import {
+  campaignBudgetPresets,
+  getCampaignBudgetPreset,
+  isCampaignBudgetBelowMinimum,
+  MIN_CAMPAIGN_BUDGET,
+} from '../utils/campaignBudget';
 import { inr } from '../utils/money';
 
-const presets = [
-  { label: '₹5k - ₹10k', value: 10000 },
-  { label: '₹10k - ₹25k', value: 25000 },
-  { label: '₹25k - ₹50k', value: 50000 },
-];
-
 export function BudgetSetup() {
-  const nav = useNavigate();
-  const { budget, setBudget } = useCampaign();
-  const [custom, setCustom] = useState('');
-  const [picked, setPicked] = useState<number | 'custom' | null>(null);
+  const navigate = useNavigate();
+  const { budget, budgetPresetId, setBudget, setBudgetPreset } = useCampaign();
+  const [picked, setPicked] = useState<typeof budgetPresetId | 'custom'>(
+    budgetPresetId ?? 'custom',
+  );
+  const [custom, setCustom] = useState(budgetPresetId ? '' : String(budget));
 
-  const canProceed = picked === 'custom' ? Number(custom) > 0 : picked !== null;
+  const customBudget = Number.parseInt(custom || '0', 10) || 0;
+  const selectedPreset =
+    picked && picked !== 'custom' ? getCampaignBudgetPreset(picked) : null;
 
-  const go = () => {
-    if (picked === 'custom') setBudget(Number(custom));
-    else if (typeof picked === 'number') setBudget(picked);
-    nav('/ai-plan');
+  const activeBudget = useMemo(() => {
+    if (selectedPreset) return selectedPreset.max ?? selectedPreset.min;
+    return customBudget;
+  }, [customBudget, selectedPreset]);
+
+  const customBudgetError =
+    picked === 'custom' && isCampaignBudgetBelowMinimum(customBudget)
+      ? `Minimum campaign budget is ${inr(MIN_CAMPAIGN_BUDGET)}`
+      : '';
+  const canContinue =
+    selectedPreset !== null ||
+    (picked === 'custom' && customBudget >= MIN_CAMPAIGN_BUDGET);
+
+  const submit = () => {
+    if (!canContinue) return;
+
+    if (selectedPreset) {
+      setBudgetPreset(selectedPreset.id);
+    } else {
+      setBudget(customBudget);
+    }
+
+    navigate('/ai-plan');
   };
 
   return (
-    <div className="flex flex-col min-h-full px-6 pt-14 pb-8">
-      <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-        <ArrowLeft className="w-4 h-4" />
-      </button>
+    <div className="fin-page">
+      <BackButton onClick={() => navigate(-1)} />
+      <ScreenHeader
+        eyebrow="Campaign setup"
+        title="Set the budget"
+        subtitle="Pick the amount you want to deploy before we build a creator shortlist."
+      />
 
-      <div className="mt-10">
-        <div className="text-xs uppercase tracking-widest text-white/40">Step 1 of 3</div>
-        <h1 className="mt-2 text-white text-3xl tracking-tight">What's your campaign budget?</h1>
-        <p className="mt-2 text-white/50">We'll build a creator plan that fits.</p>
-      </div>
-
-      <div className="mt-8 space-y-2">
-        {presets.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => setPicked(p.value)}
-            className={`w-full text-left px-4 py-4 rounded-2xl border transition-all flex items-center justify-between ${picked === p.value ? 'bg-white text-black border-white' : 'bg-white/[0.03] border-white/10 text-white'
+      <div className="space-y-3">
+        {campaignBudgetPresets.map((option) => {
+          const active = picked === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => {
+                setPicked(option.id);
+                setCustom('');
+              }}
+              className={`w-full rounded-2xl border p-4 text-left ${
+                active
+                  ? 'border-lime-200/40 bg-lime-200/10 text-white'
+                  : 'border-white/10 bg-gray-800 text-white'
               }`}
-          >
-            <span>{p.label}</span>
-            <span className={`text-xs ${picked === p.value ? 'text-black/50' : 'text-white/40'}`}>up to {inr(p.value)}</span>
-          </button>
-        ))}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium">{option.label}</span>
+                <span className="text-xs text-zinc-400">{option.accent}</span>
+              </div>
+            </button>
+          );
+        })}
+
         <div
-          className={`px-4 py-3 rounded-2xl border transition-all ${picked === 'custom' ? 'bg-white/[0.06] border-white/30' : 'bg-white/[0.03] border-white/10'
-            }`}
+          className={`rounded-2xl border p-4 ${
+            picked === 'custom'
+              ? 'border-lime-200/40 bg-lime-200/10'
+              : 'border-white/10 bg-gray-800'
+          }`}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-white/50 text-sm">₹</span>
+          <div className="fin-eyebrow">Custom amount</div>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-sm text-zinc-400">
+              {inr(0).replace(/[0-9,]/g, '')}
+            </span>
             <input
               inputMode="numeric"
               value={custom}
-              onChange={(e) => {
-                setCustom(e.target.value.replace(/\D/g, ''));
+              onChange={(event) => {
                 setPicked('custom');
+                setCustom(event.target.value.replace(/\D/g, ''));
               }}
-              onFocus={() => setPicked('custom')}
-              placeholder="Custom amount"
-              className="flex-1 bg-transparent outline-none text-white placeholder:text-white/30 text-sm"
+              className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 outline-none"
+              placeholder="Enter campaign budget"
             />
           </div>
+          {customBudgetError ? (
+            <div className="mt-3 text-xs text-rose-300">{customBudgetError}</div>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex-1" />
+      <div className="fin-card">
+        <div className="fin-eyebrow">What this funds</div>
+        <div className="mt-3 text-sm leading-6 text-zinc-300">
+          Your budget is used to shortlist creators, price deliverables, and lock
+          escrow before the campaign goes live.
+        </div>
+        <div className="mt-3 text-xs text-zinc-500">
+          Planning budget: {selectedPreset ? selectedPreset.label : inr(activeBudget)}
+        </div>
+      </div>
 
-      <button
-        onClick={go}
-        disabled={!canProceed}
-        className="mt-10 w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-      >
-        <Sparkles className="w-4 h-4" /> Get AI Recommendations <ArrowRight className="w-4 h-4" />
-      </button>
+      <div className="fin-sticky-actions -mx-4">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canContinue}
+          className="fin-button-primary w-full"
+        >
+          <Sparkles className="h-4 w-4" /> Build shortlist{' '}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

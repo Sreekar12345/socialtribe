@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Upload, Link2, Loader2, Check } from 'lucide-react';
+import { Link2, Loader2, Check, Upload } from 'lucide-react';
+import { BackButton, ScreenHeader } from '../components/FintechPrimitives';
 
 export function ContentSubmission() {
   const nav = useNavigate();
@@ -21,72 +22,71 @@ export function ContentSubmission() {
   };
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={() => nav(-1)} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70">
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <div className="text-xs uppercase tracking-widest text-white/40">Submit</div>
-          <div className="text-white">Acme Co. · Reel</div>
-        </div>
-      </div>
+    <div className="fin-page">
+      <BackButton onClick={() => nav(-1)} />
+      <ScreenHeader
+        eyebrow="Submission"
+        title="Deliver campaign content."
+        subtitle="Upload the asset or paste the live link, then include the exact caption that will publish."
+      />
 
-      <div className="px-5 space-y-4 flex-1">
-        <button
-          onClick={() => setHasFile((v) => !v)}
-          className={`w-full aspect-[4/3] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
-            hasFile ? 'bg-white/[0.06] border-white/30' : 'bg-white/[0.02] border-white/10'
-          }`}
-        >
-          {hasFile ? (
-            <>
-              <Check className="w-6 h-6 text-white" />
-              <span className="text-white text-sm">reel_final_v2.mp4</span>
-              <span className="text-[11px] text-white/40">Tap to replace</span>
-            </>
-          ) : (
-            <>
-              <Upload className="w-6 h-6 text-white/60" />
-              <span className="text-white/70 text-sm">Upload screenshot or video</span>
-              <span className="text-[11px] text-white/40">PNG · JPG · MP4 up to 200MB</span>
-            </>
-          )}
-        </button>
+      <button onClick={() => setHasFile((value) => !value)} className={`fin-upload mt-2 ${hasFile ? 'fin-upload-active' : ''}`}>
+        {hasFile ? (
+          <>
+            <Check className="h-6 w-6 text-black" />
+            <span className="text-sm text-black">reel_final_v2.mp4</span>
+            <span className="text-[11px] text-black/45">Tap to replace</span>
+          </>
+        ) : (
+          <>
+            <Upload className="h-6 w-6 text-black/60" />
+            <span className="text-sm text-black/75">Upload screenshot or video</span>
+            <span className="text-[11px] text-black/45">PNG · JPG · MP4 up to 200MB</span>
+          </>
+        )}
+      </button>
 
-        <div>
-          <label className="text-xs uppercase tracking-widest text-white/40">Or paste link</label>
-          <div className="mt-2 flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 focus-within:border-white/30">
-            <Link2 className="w-4 h-4 text-white/40" />
-            <input
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="instagram.com/p/..."
-              className="flex-1 bg-transparent outline-none text-white placeholder:text-white/30 text-sm"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs uppercase tracking-widest text-white/40">Caption</label>
-          <textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            rows={4}
-            placeholder="Write the caption you'll publish…"
-            className="mt-2 w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder:text-white/30 outline-none focus:border-white/30 text-sm resize-none"
+      <div className="fin-panel-cream mt-5">
+        <label className="fin-eyebrow">Or paste link</label>
+        <div className="fin-input-group">
+          <Link2 className="h-4 w-4 text-black/40" />
+          <input
+            value={link}
+            onChange={(event) => setLink(event.target.value)}
+            placeholder="instagram.com/p/..."
+            className="flex-1 bg-transparent text-sm text-black placeholder:text-black/35 outline-none"
           />
         </div>
-        <div className="h-28" />
       </div>
 
-      <div className="sticky bottom-0 backdrop-blur-xl bg-black/70 border-t border-white/10 px-5 py-4">
+      <div className="mt-5">
+        <label className="fin-eyebrow">Caption</label>
+        <textarea
+          value={caption}
+          onChange={(event) => setCaption(event.target.value)}
+          rows={4}
+          placeholder="Write the caption you'll publish..."
+          className="fin-input mt-2 resize-none"
+        />
+      </div>
+
+      <div className="fin-sticky-actions -mx-5 mt-8">
         <button
           onClick={submit}
           disabled={submitting || done || !caption || (!link && !hasFile)}
-          className="w-full py-3.5 rounded-2xl bg-white text-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+          className="fin-button-primary w-full"
         >
-          {done ? <><Check className="w-4 h-4" /> Submitted</> : submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : 'Mark as Completed'}
+          {done ? (
+            <>
+              <Check className="h-4 w-4" /> Submitted
+            </>
+          ) : submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Submitting…
+            </>
+          ) : (
+            'Mark as completed'
+          )}
         </button>
       </div>
     </div>

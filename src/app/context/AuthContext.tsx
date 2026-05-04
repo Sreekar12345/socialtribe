@@ -1,20 +1,48 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
+import type { DeliverableKey } from '../utils/pricing';
 
 export type Role = 'brand' | 'influencer';
+export type VerificationStatus =
+  | 'idle'
+  | 'verifying'
+  | 'invalid'
+  | 'processing'
+  | 'ready';
+
+export interface VerificationResult {
+  followers: number;
+  engagementRate: number;
+  activityLevel: number;
+  score: number;
+  tier: 'Nano' | 'Micro' | 'Macro';
+  summary: string;
+}
 
 interface Profile {
   brandName?: string;
   industry?: string;
-  category?: string;
+  email?: string;
+  instagramHandle?: string;
+  niche?: string;
   followers?: string;
-  price?: string;
+  pricing?: Partial<Record<DeliverableKey, number>>;
+  verificationStatus?: VerificationStatus;
+  verificationError?: string;
+  verificationResult?: VerificationResult;
 }
 
 interface AuthState {
   role: Role | null;
   setRole: (r: Role) => void;
   profile: Profile;
-  setProfile: (p: Profile) => void;
+  setProfile: Dispatch<SetStateAction<Profile>>;
 }
 
 const Ctx = createContext<AuthState | null>(null);
