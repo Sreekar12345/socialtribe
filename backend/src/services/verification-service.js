@@ -44,6 +44,59 @@ export function createVerificationService({
   sourceProvider,
 }) {
   return {
+    buildVerificationPreview(rawProfile, verifiedAt = new Date()) {
+      const outcome = buildVerificationOutcome(
+        { ...rawProfile, sourceProvider },
+        verifiedAt,
+      );
+
+      return {
+        instagramUserId: outcome.instagramUserId,
+        username: outcome.username,
+        followers: outcome.followers,
+        following: outcome.following,
+        totalPosts: outcome.totalPosts,
+        category: outcome.category,
+        categoryConfidence: outcome.categoryConfidence,
+        score: outcome.score,
+        status: outcome.status,
+        eligibleForCampaigns: outcome.eligibleForCampaigns,
+        rejectionReason: outcome.rejectionReason,
+        engagementRate: outcome.engagementRate,
+        scoreBreakdown: {
+          engagementRateNormalized: outcome.engagementRateNormalized,
+          followerQuality: outcome.followerQuality,
+          consistency: outcome.consistency,
+          relevanceScore: outcome.relevanceScore,
+        },
+        accountFlags: {
+          isPrivate: outcome.isPrivate,
+          isVerified: outcome.isVerified,
+          isBusinessOrCreator: outcome.isBusinessOrCreator,
+        },
+        sourceProvider,
+        verifiedAt: verifiedAt.toISOString(),
+      };
+    },
+
+    async saveVerifiedProfile(rawProfile, verifiedAt = new Date()) {
+      const outcome = buildVerificationOutcome(
+        { ...rawProfile, sourceProvider },
+        verifiedAt,
+      );
+      const cacheExpiresAt = addHours(verifiedAt, cacheTtlHours);
+
+      const stored = await repository.saveVerification({
+        rawProfile,
+        outcome,
+        verifiedAt,
+        cacheExpiresAt,
+        sourceProvider,
+      });
+
+      return mapRecordToResponse(stored, "fresh");
+    },
+
     async verifyInfluencer({ username, forceRefresh = false }) {
       const normalizedUsername = normalizeUsername(username);
       const cached = await repository.findByUsername(normalizedUsername);
@@ -59,21 +112,7 @@ export function createVerificationService({
       }
 
       const rawProfile = await provider.fetchByUsername(normalizedUsername);
-      const outcome = buildVerificationOutcome(
-        { ...rawProfile, sourceProvider },
-        now,
-      );
-      const cacheExpiresAt = addHours(now, cacheTtlHours);
-
-      const stored = await repository.saveVerification({
-        rawProfile,
-        outcome,
-        verifiedAt: now,
-        cacheExpiresAt,
-        sourceProvider,
-      });
-
-      return mapRecordToResponse(stored, "fresh");
+      return this.saveVerifiedProfile(rawProfile, now);
     },
 
     async getInfluencerByUsername(username) {

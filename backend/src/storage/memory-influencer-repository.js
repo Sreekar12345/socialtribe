@@ -7,6 +7,8 @@ function sortByScoreDescending(left, right) {
 export function createMemoryInfluencerRepository() {
   const influencers = new Map();
   const verificationRuns = [];
+  const accountsByEmail = new Map();
+  const accountsByInfluencerId = new Map();
 
   return {
     async findByUsername(username) {
@@ -94,6 +96,39 @@ export function createMemoryInfluencerRepository() {
       });
 
       return record;
+    },
+
+    async saveInfluencerAccount({ influencerId, email, passwordHash }) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const existingByEmail = accountsByEmail.get(normalizedEmail);
+
+      if (existingByEmail && existingByEmail.influencerId !== influencerId) {
+        const error = new Error("An account with this email already exists.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const existingByInfluencerId = accountsByInfluencerId.get(influencerId);
+      const account = {
+        id: existingByInfluencerId?.id ?? randomUUID(),
+        influencerId,
+        email: normalizedEmail,
+        passwordHash,
+        createdAt: existingByInfluencerId?.createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (
+        existingByInfluencerId &&
+        existingByInfluencerId.email !== normalizedEmail
+      ) {
+        accountsByEmail.delete(existingByInfluencerId.email);
+      }
+
+      accountsByEmail.set(normalizedEmail, account);
+      accountsByInfluencerId.set(influencerId, account);
+
+      return account;
     },
   };
 }

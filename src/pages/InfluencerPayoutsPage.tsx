@@ -1,3 +1,4 @@
+import { addDays, format, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { Card } from '../components/Card';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -7,17 +8,118 @@ import {
   influencerPerformanceInsight,
 } from '../data/dashboardMockData';
 
+type PayoutEntry = (typeof influencerPayoutEntries)[number];
+type PayoutFilter = 'All' | 'Completed' | 'Pending';
+type PayoutStatus = 'COMPLETED' | 'PENDING' | 'FAILED' | 'DELAYED';
+
+const payoutTimingById: Record<
+  PayoutEntry['id'],
+  {
+    submissionDate: string;
+    payoutCycleDays: number;
+  }
+> = {
+  'payout-1': {
+    submissionDate: '2026-04-21',
+    payoutCycleDays: 7,
+  },
+  'payout-2': {
+    submissionDate: '2026-05-05',
+    payoutCycleDays: 7,
+  },
+  'payout-3': {
+    submissionDate: '2026-04-29',
+    payoutCycleDays: 7,
+  },
+  'payout-4': {
+    submissionDate: '2026-04-25',
+    payoutCycleDays: 7,
+  },
+  'payout-5': {
+    submissionDate: '2026-05-09',
+    payoutCycleDays: 7,
+  },
+};
+
+function normalizePayoutStatus(status: string): PayoutStatus {
+  switch (status.toUpperCase()) {
+    case 'COMPLETED':
+      return 'COMPLETED';
+    case 'FAILED':
+      return 'FAILED';
+    case 'DELAYED':
+      return 'DELAYED';
+    default:
+      return 'PENDING';
+  }
+}
+
+function formatEstimatedPayoutDate(
+  submissionDate: string,
+  payoutCycleDays: number,
+) {
+  return format(addDays(parseISO(submissionDate), payoutCycleDays), 'd MMM yyyy');
+}
+
+function getPayoutStatusDetails(entry: PayoutEntry) {
+  const status = normalizePayoutStatus(entry.status);
+
+  switch (status) {
+    case 'COMPLETED':
+      return {
+        badgeLabel: 'Completed',
+        badgeClassName: 'bg-green-100 text-green-800',
+        message: null,
+        messageClassName: '',
+      };
+    case 'FAILED':
+      return {
+        badgeLabel: 'Failed',
+        badgeClassName: 'bg-red-100 text-red-700',
+        message: 'Payout failed \u2014 retrying',
+        messageClassName: 'text-sm text-red-600',
+      };
+    case 'DELAYED':
+      return {
+        badgeLabel: 'Delayed',
+        badgeClassName: 'bg-orange-100 text-orange-700',
+        message: 'Delayed \u2014 processing',
+        messageClassName: 'text-sm text-orange-700',
+      };
+    case 'PENDING': {
+      const payoutTiming = payoutTimingById[entry.id];
+
+      return {
+        badgeLabel: 'Pending',
+        badgeClassName: 'bg-amber-100 text-amber-800',
+        message: `Estimated payout: ${formatEstimatedPayoutDate(payoutTiming.submissionDate, payoutTiming.payoutCycleDays)}`,
+        messageClassName: 'text-sm text-neutral-600',
+      };
+    }
+  }
+}
+
 export function InfluencerPayoutsPage() {
   usePageTitle('Payouts');
 
-  const [filter, setFilter] = useState<'All' | 'Completed' | 'Pending'>('All');
+  const [filter, setFilter] = useState<PayoutFilter>('All');
 
   const visibleEntries = useMemo(() => {
     if (filter === 'All') {
       return influencerPayoutEntries;
     }
 
-    return influencerPayoutEntries.filter((entry) => entry.status === filter);
+    if (filter === 'Completed') {
+      return influencerPayoutEntries.filter(
+        (entry) => normalizePayoutStatus(entry.status) === 'COMPLETED',
+      );
+    }
+
+    return influencerPayoutEntries.filter((entry) =>
+      ['PENDING', 'FAILED', 'DELAYED'].includes(
+        normalizePayoutStatus(entry.status),
+      ),
+    );
   }, [filter]);
 
   return (
@@ -95,27 +197,34 @@ export function InfluencerPayoutsPage() {
 
       <div className="space-y-3">
         {visibleEntries.length > 0 ? (
-          visibleEntries.map((entry) => (
-            <div key={entry.id} className="mb-3 rounded-xl bg-white p-4">
-              <div className="mb-1 flex items-center justify-between">
-                <p className="font-medium text-neutral-950">{entry.title}</p>
-                <span className="rounded bg-green-100 px-2 py-1 text-xs text-neutral-700">
-                  {entry.status.toUpperCase()}
-                </span>
-              </div>
+          visibleEntries.map((entry) => {
+            const statusDetails = getPayoutStatusDetails(entry);
 
-              <p className="mb-2 text-xs text-gray-500">
-                {entry.brandName} • {entry.contentType}
-              </p>
+            return (
+              <Card key={entry.id} className="p-4">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="font-medium text-neutral-950">{entry.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {entry.brandName} {'\u2022'} {entry.contentType}
+                    </p>
+                  </div>
 
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-600">Earned</span>
-                <span className="font-medium text-neutral-950">
-                  {entry.earned}
-                </span>
-              </div>
-            </div>
-          ))
+                  {statusDetails.message ? (
+                    <p className={statusDetails.messageClassName}>
+                      {statusDetails.message}
+                    </p>
+                  ) : null}
+
+                  <span
+                    className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${statusDetails.badgeClassName}`}
+                  >
+                    {statusDetails.badgeLabel}
+                  </span>
+                </div>
+              </Card>
+            );
+          })
         ) : (
           <Card className="p-6 text-center">
             <p className="text-sm text-neutral-600">

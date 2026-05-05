@@ -33,8 +33,6 @@ export function BrandRecommendationsPage() {
   );
 
   const budgetTotalLabel = formatCurrency(budget);
-  const usedAmountLabel = formatCurrency(plan.totalCost);
-  const remainingAmountLabel = formatCurrency(budget - plan.totalCost);
   const estimatedReach = getEstimatedReach(plan.selected);
   const selectedInfluencerIds = plan.selected.map((influencer) => influencer.id);
   const hasValidPlan = budget > 0 && plan.selected.length > 0;
@@ -51,7 +49,7 @@ export function BrandRecommendationsPage() {
       </div>
 
       <Card className="p-6">
-        <div className="space-y-4">
+        <div className="flex min-h-[88px] flex-col justify-center space-y-2">
           <div className="space-y-1">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-neutral-500">
               Recommended Plan
@@ -59,48 +57,9 @@ export function BrandRecommendationsPage() {
             <h2 className="text-2xl font-semibold tracking-[-0.03em] text-neutral-950">
               Recommended Plan for {budgetTotalLabel}
             </h2>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-600">{plan.utilization}% used</span>
-              <span className="font-medium text-neutral-950">
-                {plan.selected.length} Influencers Selected
-              </span>
-            </div>
-            <div className="h-3 rounded-full bg-[#f1efe9]">
-              <div
-                className="h-full rounded-full bg-neutral-950 transition-all"
-                style={{ width: `${Math.min(plan.utilization, 100)}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-[22px] bg-[#f4ecd6] px-4 py-3">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                Budget Total
-              </p>
-              <p className="mt-2 text-sm font-semibold text-neutral-950">
-                {budgetTotalLabel}
-              </p>
-            </div>
-            <div className="rounded-[22px] bg-[#ede7fb] px-4 py-3">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                Used
-              </p>
-              <p className="mt-2 text-sm font-semibold text-neutral-950">
-                {usedAmountLabel}
-              </p>
-            </div>
-            <div className="rounded-[22px] bg-[#eef5d8] px-4 py-3">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                Remaining
-              </p>
-              <p className="mt-2 text-sm font-semibold text-neutral-950">
-                {remainingAmountLabel}
-              </p>
-            </div>
+            <p className="text-sm leading-6 text-neutral-600">
+              {plan.selected.length} Influencers Selected
+            </p>
           </div>
         </div>
       </Card>

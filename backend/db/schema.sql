@@ -62,6 +62,17 @@ CREATE TABLE IF NOT EXISTS influencer_posts (
 CREATE INDEX IF NOT EXISTS idx_influencer_posts_influencer_id ON influencer_posts (influencer_id);
 CREATE INDEX IF NOT EXISTS idx_influencer_posts_posted_at ON influencer_posts (posted_at DESC);
 
+CREATE TABLE IF NOT EXISTS influencer_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  influencer_id UUID NOT NULL UNIQUE REFERENCES influencers(id) ON DELETE CASCADE,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_influencer_accounts_email ON influencer_accounts (LOWER(email));
+
 CREATE TABLE IF NOT EXISTS verification_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   influencer_id UUID NOT NULL REFERENCES influencers(id) ON DELETE CASCADE,

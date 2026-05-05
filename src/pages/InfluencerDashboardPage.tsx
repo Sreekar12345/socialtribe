@@ -1,95 +1,164 @@
-import { motion } from 'motion/react';
 import { MessageCircle } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { useInfluencerWork } from '../context/InfluencerWorkContext';
 import { usePageTitle } from '../hooks/usePageTitle';
 import {
-  influencerPerformanceAnalytics,
   influencerOpportunities,
+  influencerPriorityOpportunityTriggers,
   profileData,
 } from '../data/dashboardMockData';
-import {
-  buildEarningInsights,
-  type EarningsInsight,
-} from '../utils/influencerInsights';
+import { loadConnectedInfluencerAccount } from '../utils/influencerSignup';
+
+type OpportunityFilter = 'All' | 'Reel' | 'Post' | 'Story';
+
+const opportunityFilters: OpportunityFilter[] = ['All', 'Reel', 'Post', 'Story'];
+
+function formatCountdown(remainingMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, '0'))
+    .join(':');
+}
+
+function toTitleCase(value: string) {
+  if (!value) {
+    return '';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
 
 export function InfluencerDashboardPage() {
   usePageTitle('Influencer dashboard');
 
   const navigate = useNavigate();
   const influencer = profileData.influencer;
-  const { campaigns } = useInfluencerWork();
-  const opportunitiesRef = useRef<HTMLDivElement | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeContentType, setActiveContentType] = useState<string | null>(
-    null,
-  );
+  const connectedAccount = useMemo(() => loadConnectedInfluencerAccount(), []);
+  const [opportunityFilter, setOpportunityFilter] =
+    useState<OpportunityFilter>('All');
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const filteredOpportunities = useMemo(
     () =>
-      influencerOpportunities.filter((opportunity) => {
-        const matchesCategory = activeCategory
-          ? opportunity.category === activeCategory
-          : true;
-        const matchesContentType = activeContentType
-          ? opportunity.contentType === activeContentType
-          : true;
-
-        return matchesCategory && matchesContentType;
-      }),
-    [activeCategory, activeContentType],
+      influencerOpportunities.filter((opportunity) =>
+        opportunityFilter === 'All'
+          ? true
+          : opportunity.contentType === opportunityFilter,
+      ),
+    [opportunityFilter],
   );
 
-  const insights = useMemo(
-    () =>
-      buildEarningInsights({
-        analytics: influencerPerformanceAnalytics,
-        campaigns,
-        opportunities: influencerOpportunities,
-      }),
-    [campaigns],
-  );
+  const priorityTriggerWindows = useMemo(() => {
+    const baseTimestamp = Date.now();
 
-  function scrollToOpportunities() {
-    opportunitiesRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  }
+    return influencerPriorityOpportunityTriggers.map((trigger) => ({
+      ...trigger,
+      expiresAt:
+        baseTimestamp +
+        Math.max(0, (120 - trigger.triggeredMinutesAgo) * 60 * 1000),
+    }));
+  }, []);
 
-  function handleInsightAction(insight: EarningsInsight) {
-    if (insight.action.type === 'filter-content') {
-      setActiveContentType(insight.action.value);
-      setActiveCategory(null);
-      scrollToOpportunities();
-      return;
-    }
+  const priorityOpportunities = useMemo(() => {
+    const matchingNiches = new Set([
+      ...influencer.nicheTags,
+      ...(connectedAccount?.category
+        ? [toTitleCase(connectedAccount.category)]
+        : []),
+    ]);
+    const followerCount =
+      connectedAccount?.followers ?? influencer.followersCount;
+    const engagementRate =
+      connectedAccount?.engagementRate ?? influencer.engagementRateValue;
 
-    if (insight.action.type === 'filter-category') {
-      setActiveCategory(insight.action.value);
-      setActiveContentType(null);
-      scrollToOpportunities();
-      return;
-    }
+    return priorityTriggerWindows
+      .map((trigger) => {
+        const opportunity = influencerOpportunities.find(
+          (item) => item.id === trigger.opportunityId,
+        );
 
-    scrollToOpportunities();
-  }
+        if (!opportunity) {
+          return null;
+        }
 
-  const activeFilterLabel = activeCategory
-    ? `${activeCategory} opportunities`
-    : activeContentType
-      ? `${activeContentType} opportunities`
-      : null;
+        const matchesNiche = matchingNiches.has(opportunity.category);
+        const matchesFollowers =
+          followerCount >= trigger.followerRange.min &&
+          followerCount <= trigger.followerRange.max;
+        const matchesEngagement =
+          engagementRate >= trigger.engagementRange.min &&
+          engagementRate <= trigger.engagementRange.max;
+        const remainingMs = trigger.expiresAt - currentTime;
+
+        if (
+          !matchesNiche ||
+          !matchesFollowers ||
+          !matchesEngagement ||
+          remainingMs <= 0
+        ) {
+          return null;
+        }
+
+        return {
+          ...opportunity,
+          priorityId: trigger.id,
+          remainingMs,
+        };
+      })
+      .filter(
+        (
+          opportunity,
+        ): opportunity is (typeof influencerOpportunities)[number] & {
+          priorityId: string;
+          remainingMs: number;
+        } => opportunity !== null,
+      )
+      .sort((left, right) => left.remainingMs - right.remainingMs)
+      .slice(0, 3);
+  }, [
+    connectedAccount?.category,
+    connectedAccount?.engagementRate,
+    connectedAccount?.followers,
+    currentTime,
+    influencer.engagementRateValue,
+    influencer.followersCount,
+    influencer.nicheTags,
+    priorityTriggerWindows,
+  ]);
+
+  const displayName = connectedAccount
+    ? `@${connectedAccount.username}`
+    : influencer.name;
+  const displayScore = connectedAccount
+    ? String(connectedAccount.scorePercent)
+    : influencer.score;
+  const displayEngagement = connectedAccount
+    ? `${connectedAccount.engagementRate.toFixed(1)}%`
+    : influencer.engagementRate;
+  const displayFollowers = connectedAccount
+    ? connectedAccount.followers.toLocaleString('en-IN')
+    : influencer.followers;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-neutral-950">
-            Welcome back, {influencer.name}
+            Welcome back, {displayName}
           </h1>
           <p className="text-sm leading-6 text-neutral-600">
             Here&apos;s your activity overview
@@ -106,154 +175,171 @@ export function InfluencerDashboardPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-4">
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="border-black/5 bg-white p-4 shadow-none">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
             Score
           </p>
           <p className="mt-3 text-xl font-semibold text-neutral-950">
-            {influencer.score}
+            {displayScore}
           </p>
         </Card>
-        <Card className="border-[#c5b0f4] bg-[#f4f0fd] p-4">
+        <Card className="border-black/5 bg-white p-4 shadow-none">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
             Engagement
           </p>
           <p className="mt-3 text-xl font-semibold text-neutral-950">
-            {influencer.engagementRate}
+            {displayEngagement}
           </p>
         </Card>
-        <Card className="p-4">
+        <Card className="border-black/5 bg-white p-4 shadow-none">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
             Followers
           </p>
           <p className="mt-3 text-xl font-semibold text-neutral-950">
-            {influencer.followers}
+            {displayFollowers}
           </p>
         </Card>
       </div>
 
-      <div ref={opportunitiesRef} className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+      <section className="space-y-4">
+        <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-[-0.03em] text-neutral-950">
-            New Opportunities
+            &#9889; Priority Opportunities
           </h2>
-          {activeFilterLabel ? (
-            <button
-              type="button"
-              onClick={() => {
-                setActiveCategory(null);
-                setActiveContentType(null);
-              }}
-              className="text-xs font-medium text-neutral-600 underline"
-            >
-              Reset
-            </button>
-          ) : null}
         </div>
 
-        {activeFilterLabel ? (
-          <p className="text-sm text-neutral-600">
-            Showing {activeFilterLabel}
-          </p>
-        ) : null}
-
-        {filteredOpportunities.map((item, index) => (
-          <Card
-            key={item.id}
-            className={
-              index % 2 === 0 ? 'p-5' : 'border-[#c5b0f4] bg-[#f4f0fd] p-5'
-            }
-          >
-            <div className="space-y-3">
-              <div>
-                <h3 className="text-base font-semibold text-neutral-950">
-                  {item.title}
-                </h3>
-                <p className="mt-1 text-sm font-medium text-neutral-700">
-                  {item.category}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-neutral-600">
-                  {item.description}
-                </p>
-              </div>
-
-              <Button
-                fullWidth
-                onClick={() => navigate(`/influencer/campaign/${item.id}`)}
+        {priorityOpportunities.length > 0 ? (
+          <div className="space-y-4">
+            {priorityOpportunities.map((opportunity) => (
+              <Card
+                key={opportunity.priorityId}
+                className="border-black/5 bg-[#fbfaf7] p-6 shadow-none"
               >
-                View Details
-              </Button>
-            </div>
-          </Card>
-        ))}
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-base font-semibold text-neutral-950">
+                        {opportunity.title}
+                      </h3>
+                      <p className="text-sm text-neutral-600">
+                        {opportunity.brand}
+                      </p>
+                    </div>
 
-        {filteredOpportunities.length === 0 ? (
-          <Card className="p-5 text-center">
+                    <p className="shrink-0 font-mono text-sm font-semibold tracking-[0.12em] text-neutral-950">
+                      {formatCountdown(opportunity.remainingMs)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-700">
+                      {opportunity.contentType}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-neutral-700">
+                      {'\uD83D\uDD25 1 slot open'}
+                    </span>
+                  </div>
+
+                  <Button
+                    fullWidth
+                    onClick={() =>
+                      navigate(`/influencer/campaign/${opportunity.id}`)
+                    }
+                  >
+                    Accept Now
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="border-black/5 bg-[#fbfaf7] p-6 text-center shadow-none">
             <p className="text-sm text-neutral-600">
-              No opportunities match this earning focus yet.
+              No priority openings right now. Urgent matches will appear here
+              automatically.
             </p>
           </Card>
-        ) : null}
-      </div>
+        )}
+      </section>
 
-      <div className="space-y-3">
-        <h2 className="text-2xl font-semibold tracking-[-0.03em] text-neutral-950">
-          Grow Your Earnings
-        </h2>
+      <section className="space-y-4">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-neutral-950">
+              New Opportunities
+            </h2>
+          </div>
 
-        {insights.length > 0 ? (
-          insights.map((insight, index) => (
-            <motion.div
-              key={insight.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.06, duration: 0.25 }}
-            >
-              <Card className="p-5 transition hover:-translate-y-0.5">
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-neutral-950">
-                      {insight.title}
-                    </h3>
-                    <p className="mt-1 text-sm leading-6 text-neutral-600">
-                      {insight.description}
-                    </p>
+          <div className="flex flex-wrap gap-2">
+            {opportunityFilters.map((filter) => {
+              const active = opportunityFilter === filter;
+
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setOpportunityFilter(filter)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    active
+                      ? 'bg-neutral-950 text-white'
+                      : 'border border-black/10 bg-white text-neutral-700'
+                  }`}
+                >
+                  {filter}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {filteredOpportunities.length > 0 ? (
+          <div className="space-y-4">
+            {filteredOpportunities.map((opportunity) => (
+              <Card
+                key={opportunity.id}
+                className="border-black/5 bg-white p-5 shadow-none"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <h3 className="text-base font-semibold text-neutral-950">
+                        {opportunity.title}
+                      </h3>
+                      <p className="text-sm text-neutral-600">
+                        {opportunity.category}
+                      </p>
+                      <p className="truncate text-sm leading-6 text-neutral-600">
+                        {opportunity.description}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-[#f7f7f5] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-700">
+                      {opportunity.contentType}
+                    </span>
                   </div>
 
                   <Button
                     variant="secondary"
                     fullWidth
-                    onClick={() => handleInsightAction(insight)}
+                    onClick={() =>
+                      navigate(`/influencer/campaign/${opportunity.id}`)
+                    }
                   >
-                    {insight.actionLabel}
+                    View Details
                   </Button>
                 </div>
               </Card>
-            </motion.div>
-          ))
+            ))}
+          </div>
         ) : (
-          <Card className="p-5">
+          <Card className="border-black/5 bg-white p-5 text-center shadow-none">
             <p className="text-sm text-neutral-600">
-              Complete your first campaign to unlock earning insights
+              No opportunities match this filter yet.
             </p>
           </Card>
         )}
-      </div>
-
-      <Card className="p-6">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-neutral-950">
-            Quick Action
-          </h2>
-          <Button
-            fullWidth
-            onClick={() => navigate('/influencer/campaigns')}
-          >
-            Browse Campaigns
-          </Button>
-        </div>
-      </Card>
+      </section>
     </div>
   );
 }

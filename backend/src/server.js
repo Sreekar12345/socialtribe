@@ -2,7 +2,9 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerInfluencerRoutes } from "./routes/influencers.js";
+import { registerInstagramAuthRoutes } from "./routes/instagram-auth.js";
 import { createVerificationService } from "./services/verification-service.js";
+import { createInstagramAuthService } from "./services/instagram-auth-service.js";
 import { createMemoryInfluencerRepository } from "./storage/memory-influencer-repository.js";
 import { createPostgresInfluencerRepository } from "./storage/postgres-influencer-repository.js";
 import { createHttpInstagramProvider } from "./providers/http-instagram-provider.js";
@@ -23,6 +25,7 @@ export function buildServer(config) {
     config.scraperMode === "http"
       ? createHttpInstagramProvider(config)
       : createMockInstagramProvider();
+  const mockProvider = createMockInstagramProvider();
 
   const verificationService = createVerificationService({
     repository,
@@ -30,9 +33,16 @@ export function buildServer(config) {
     cacheTtlHours: config.cacheTtlHours,
     sourceProvider: config.sourceProvider,
   });
+  const instagramAuthService = createInstagramAuthService({
+    config,
+    verificationService,
+    repository,
+    mockProvider,
+  });
 
   app.decorate("services", {
     verification: verificationService,
+    instagramAuth: instagramAuthService,
   });
 
   app.register(cors, {
@@ -41,6 +51,7 @@ export function buildServer(config) {
 
   app.register(registerHealthRoutes);
   app.register(registerInfluencerRoutes);
+  app.register(registerInstagramAuthRoutes);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);

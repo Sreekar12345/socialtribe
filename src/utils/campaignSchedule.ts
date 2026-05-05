@@ -1,4 +1,5 @@
 export type ScheduleContentType = 'Reel' | 'Post' | 'Story';
+export type ScheduleTimeWindow = 'Morning' | 'Afternoon' | 'Evening';
 
 export interface CampaignDeliverableCounts {
   Reel: number;
@@ -13,9 +14,12 @@ export interface CampaignScheduleInfluencer {
 }
 
 export interface CampaignScheduleEntry {
+  id: string;
   day: number;
+  influencerId: string;
   influencer: string;
   content: ScheduleContentType;
+  suggestedTimeWindow: ScheduleTimeWindow;
 }
 
 export interface CampaignScheduleResult {
@@ -26,6 +30,7 @@ export interface CampaignScheduleResult {
 }
 
 const contentTypeOrder: ScheduleContentType[] = ['Reel', 'Post', 'Story'];
+const timeWindowOrder: ScheduleTimeWindow[] = ['Morning', 'Afternoon', 'Evening'];
 
 export function createEmptyDeliverableCounts(): CampaignDeliverableCounts {
   return {
@@ -89,6 +94,45 @@ export function formatDeliverableSummary(counts: CampaignDeliverableCounts) {
     });
 
   return parts.length > 0 ? parts.join(', ') : 'Not set';
+}
+
+function createEmptyTimeWindowCounts() {
+  return timeWindowOrder.reduce(
+    (counts, window) => {
+      counts[window] = 0;
+      return counts;
+    },
+    {} as Record<ScheduleTimeWindow, number>,
+  );
+}
+
+function getTimeWindowPreferences(content: ScheduleContentType) {
+  if (content === 'Story') {
+    return ['Morning', 'Afternoon', 'Evening'] as const;
+  }
+
+  if (content === 'Post') {
+    return ['Afternoon', 'Evening', 'Morning'] as const;
+  }
+
+  return ['Evening', 'Afternoon', 'Morning'] as const;
+}
+
+function chooseSuggestedTimeWindow(
+  content: ScheduleContentType,
+  dayWindowCounts: Record<ScheduleTimeWindow, number>,
+  lastGlobalWindow: ScheduleTimeWindow | null,
+) {
+  const preferences = getTimeWindowPreferences(content);
+  let pool = preferences.filter((window) => dayWindowCounts[window] === 0);
+
+  if (pool.length === 0) {
+    pool = [...preferences];
+  }
+
+  const nonRepeatingPool = pool.filter((window) => window !== lastGlobalWindow);
+
+  return (nonRepeatingPool.length > 0 ? nonRepeatingPool : pool)[0];
 }
 
 function getQuotaByInfluencer(
@@ -311,7 +355,7 @@ export function buildCampaignSchedule(input: {
     deliverableCounts,
     durationDays,
   );
-  const schedule: Array<CampaignScheduleEntry & { influencerId: string }> = [];
+  const schedule: CampaignScheduleEntry[] = [];
   let remainingTasks = totalDeliverables;
 
   for (let day = 1; day <= durationDays && remainingTasks > 0; day += 1) {
@@ -324,6 +368,7 @@ export function buildCampaignSchedule(input: {
     const slotsToday = Math.max(minimumToday, Math.min(dailyCap, idealToday));
     const weekCounts = createEmptyDeliverableCounts();
     const dayCounts = createEmptyDeliverableCounts();
+    const dayWindowCounts = createEmptyTimeWindowCounts();
 
     schedule
       .filter(
@@ -417,12 +462,20 @@ export function buildCampaignSchedule(input: {
       remainingTasks -= 1;
       weekCounts[nextContent] += 1;
       dayCounts[nextContent] += 1;
+      const suggestedTimeWindow = chooseSuggestedTimeWindow(
+        nextContent,
+        dayWindowCounts,
+        schedule.length > 0 ? schedule[schedule.length - 1].suggestedTimeWindow : null,
+      );
+      dayWindowCounts[suggestedTimeWindow] += 1;
 
       schedule.push({
+        id: `schedule-${day}-${slot + 1}-${selectedState.influencer.id}-${nextContent}`,
         day,
         influencerId: selectedState.influencer.id,
         influencer: selectedState.influencer.name,
         content: nextContent,
+        suggestedTimeWindow,
       });
     }
   }
@@ -434,11 +487,7 @@ export function buildCampaignSchedule(input: {
   }
 
   return {
-    schedule: schedule.map(({ day, influencer, content }) => ({
-      day,
-      influencer,
-      content,
-    })),
+    schedule,
     totalDeliverables,
     durationDays,
     warnings,

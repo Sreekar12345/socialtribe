@@ -201,7 +201,77 @@ export const influencerOpportunities = [
     deadline: '08 June 2026',
     deliverables: ['3 Stories', '1 Product tag'],
   },
+  {
+    id: 'campaign-5',
+    title: 'Activewear Sprint Reel',
+    brand: 'Stride House',
+    category: 'Fitness',
+    contentType: 'Reel',
+    estimatedPayout: 2800,
+    description: 'Fast-turnaround reel campaign for a limited activewear drop.',
+    deadline: '07 June 2026',
+    deliverables: ['1 Reel', '1 Story', 'Brand tag'],
+  },
 ];
+
+export const influencerPriorityOpportunityTriggers = [
+  {
+    id: 'priority-1',
+    opportunityId: 'campaign-5',
+    triggerReason: 'REJECTED',
+    triggeredMinutesAgo: 14,
+    followerRange: {
+      min: 9000,
+      max: 18000,
+    },
+    engagementRange: {
+      min: 3.8,
+      max: 5.6,
+    },
+  },
+  {
+    id: 'priority-2',
+    opportunityId: 'campaign-4',
+    triggerReason: 'TIMED_OUT',
+    triggeredMinutesAgo: 37,
+    followerRange: {
+      min: 10000,
+      max: 17000,
+    },
+    engagementRange: {
+      min: 3.9,
+      max: 5.3,
+    },
+  },
+  {
+    id: 'priority-3',
+    opportunityId: 'campaign-3',
+    triggerReason: 'REJECTED',
+    triggeredMinutesAgo: 68,
+    followerRange: {
+      min: 11000,
+      max: 16000,
+    },
+    engagementRange: {
+      min: 4.0,
+      max: 5.1,
+    },
+  },
+  {
+    id: 'priority-4',
+    opportunityId: 'campaign-2',
+    triggerReason: 'TIMED_OUT',
+    triggeredMinutesAgo: 22,
+    followerRange: {
+      min: 22000,
+      max: 42000,
+    },
+    engagementRange: {
+      min: 4.8,
+      max: 6.5,
+    },
+  },
+] as const;
 
 export const influencerPerformanceAnalytics = {
   contentTypePerformance: {
@@ -335,9 +405,13 @@ export const profileData = {
     name: 'Aanya Rao',
     email: 'creator@socialtribe.app',
     role: 'Influencer',
+    primaryNiche: 'Fitness',
+    nicheTags: ['Fitness', 'Lifestyle'] as string[],
     score: '78',
     engagementRate: '4.2%',
+    engagementRateValue: 4.2,
     followers: '12,400',
+    followersCount: 12400,
     pricing: {
       reel: '₹2,000 – ₹4,000',
       post: '₹1,500 – ₹3,000',

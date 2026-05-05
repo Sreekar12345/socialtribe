@@ -315,6 +315,76 @@ export function createPostgresInfluencerRepository({ connectionString }) {
       }
     },
 
+    async saveInfluencerAccount({ influencerId, email, passwordHash }) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const existingByEmail = await client.query(
+          `
+            SELECT id, influencer_id
+            FROM influencer_accounts
+            WHERE LOWER(email) = LOWER($1)
+            LIMIT 1
+          `,
+          [normalizedEmail],
+        );
+
+        if (
+          existingByEmail.rows[0] &&
+          existingByEmail.rows[0].influencer_id !== influencerId
+        ) {
+          const error = new Error("An account with this email already exists.");
+          error.statusCode = 409;
+          throw error;
+        }
+
+        const result = await client.query(
+          `
+            INSERT INTO influencer_accounts (
+              influencer_id,
+              email,
+              password_hash
+            )
+            VALUES ($1, $2, $3)
+            ON CONFLICT (influencer_id)
+            DO UPDATE SET
+              email = EXCLUDED.email,
+              password_hash = EXCLUDED.password_hash,
+              updated_at = NOW()
+            RETURNING
+              id,
+              influencer_id,
+              email,
+              created_at,
+              updated_at
+          `,
+          [influencerId, normalizedEmail, passwordHash],
+        );
+
+        await client.query("COMMIT");
+
+        return {
+          id: result.rows[0].id,
+          influencerId: result.rows[0].influencer_id,
+          email: result.rows[0].email,
+          createdAt:
+            result.rows[0].created_at?.toISOString?.() ??
+            result.rows[0].created_at,
+          updatedAt:
+            result.rows[0].updated_at?.toISOString?.() ??
+            result.rows[0].updated_at,
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async close() {
       await pool.end();
     },
